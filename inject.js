@@ -37,7 +37,7 @@
   };
 
   // User settings, pushed in from bridge.js (see settings.js for defaults).
-  const settings = { lookSpeedX: 720, lookSpeedY: 480, logLevel: "info" };
+  const settings = { lookSpeedX: 720, lookSpeedY: 480, logLevel: "info", soundEnabled: true };
   window.addEventListener("message", (e) => {
     if (e.source !== window || e.data?.source !== "sv-gamepad-bridge") return;
     if (e.data.type === "settings") Object.assign(settings, e.data.settings);
@@ -203,6 +203,31 @@
     if (!isStreetView()) overlayHidden = false;
     applyOverlay();
   }, 500);
+
+  // --- Ambient sound ----------------------------------------------------------
+  // Report the Street View position to the background worker, which plays the
+  // nearest field recording. Positions are rounded to ~10 m so walking only
+  // triggers a lookup per step, not per URL tweak.
+  let ambientKey = ""; // "" = unknown, so the first check always reports
+
+  function updateAmbient() {
+    const m = location.href.match(/@(-?[\d.]+),(-?[\d.]+),\d+a,/);
+    if (settings.soundEnabled && m && !document.hidden) {
+      const lat = +m[1], lng = +m[2];
+      const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+      if (key !== ambientKey) {
+        ambientKey = key;
+        window.postMessage({ source: "sv-gamepad", type: "ambient", lat, lng }, "*");
+      }
+    } else if (ambientKey !== null) {
+      ambientKey = null;
+      window.postMessage({ source: "sv-gamepad", type: "ambientStop" }, "*");
+    }
+  }
+
+  setInterval(updateAmbient, 1000);
+  document.addEventListener("visibilitychange", updateAmbient);
+  updateAmbient();
 
   // --- Main loop ------------------------------------------------------------
   let startWasPressed = false;

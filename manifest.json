@@ -1,10 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Street View Gamepad",
-  "version": "1.1.0",
-  "description": "Control Google Street View with a gamepad: ABXY to walk, D-pad to look around, shoulders to zoom, Start for fullscreen, Select to hide the search bar.",
+  "version": "1.2.0",
+  "description": "Control Google Street View with a gamepad and hear ambient field recordings from nearby (radio aporee ::: maps).",
   "permissions": [
-    "storage"
+    "storage",
+    "offscreen",
+    "declarativeNetRequest"
   ],
   "background": {
     "service_worker": "background.js"
@@ -46,5 +48,8 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "Street View Gamepad settings"
-  }
+  },
+  "host_permissions": [
+    "https://aporee.org/*"
+  ]
 }

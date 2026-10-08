@@ -11,6 +11,11 @@
     output { font-variant-numeric: tabular-nums; opacity: .8; }
     input[type=range], select { width: 100%; margin: 0; }
     button { font: inherit; padding: 4px 10px; }
+    label.check { display: flex; gap: 6px; align-items: center; }
+    #nowPlaying { margin: -4px 0 14px; padding: 8px; border-radius: 6px; background: color-mix(in srgb, currentColor 8%, transparent); }
+    .np-head { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; opacity: .6; margin-bottom: 2px; }
+    #np-title { font-weight: 600; color: inherit; }
+    #np-meta { font-size: 12px; opacity: .75; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -23,6 +28,18 @@
     <div class="row"><span>Vertical look speed (D-pad ↑↓)</span><output id="lookSpeedY-out"></output></div>
     <input type="range" id="lookSpeedY" min="100" max="2400" step="20">
   </label>
+  <label class="check">
+    <input type="checkbox" id="soundEnabled"> Ambient sound from nearby recordings
+  </label>
+  <label>
+    <div class="row"><span>Volume</span><output id="volume-out"></output></div>
+    <input type="range" id="volume" min="0" max="100" step="1">
+  </label>
+  <div id="nowPlaying" hidden>
+    <div class="np-head">Now playing</div>
+    <a id="np-title" target="_blank"></a>
+    <div id="np-meta"></div>
+  </div>
   <label>
     <div class="row"><span>Console log level</span></div>
     <select id="logLevel">
