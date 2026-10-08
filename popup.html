@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 13px system-ui, sans-serif; width: 260px; margin: 12px; }
+    h1 { font-size: 14px; margin: 0 0 12px; }
+    label { display: block; margin-bottom: 14px; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    output { font-variant-numeric: tabular-nums; opacity: .8; }
+    input[type=range], select { width: 100%; margin: 0; }
+    button { font: inherit; padding: 4px 10px; }
+  </style>
+</head>
+<body>
+  <h1>Street View Gamepad</h1>
+  <label>
+    <div class="row"><span>Horizontal look speed (D-pad ←→)</span><output id="lookSpeedX-out"></output></div>
+    <input type="range" id="lookSpeedX" min="100" max="2400" step="20">
+  </label>
+  <label>
+    <div class="row"><span>Vertical look speed (D-pad ↑↓)</span><output id="lookSpeedY-out"></output></div>
+    <input type="range" id="lookSpeedY" min="100" max="2400" step="20">
+  </label>
+  <label>
+    <div class="row"><span>Console log level</span></div>
+    <select id="logLevel">
+      <option value="off">Off</option>
+      <option value="info">Info (connect/disconnect)</option>
+      <option value="debug">Debug (every button change)</option>
+    </select>
+  </label>
+  <button id="reset">Reset to defaults</button>
+  <script src="settings.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
