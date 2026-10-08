@@ -1,24 +1,29 @@
 # Street View Gamepad
 
-Chrome extension (Manifest V3) that lets you control Google Street View with a gamepad.
+Chrome extension (Manifest V3) that lets you control Google Street View — and the normal Google
+Maps map — with a gamepad.
 
-| Gamepad          | Action                         | Sent as                  |
-|------------------|--------------------------------|--------------------------|
-| Y / A            | walk forward / backward        | `ArrowUp` / `ArrowDown`  |
-| X / B            | turn left / right              | `ArrowLeft` / `ArrowRight` |
-| D-pad            | look around                    | simulated mouse drag     |
-| LB / RB          | zoom out / in                  | `-` / `+`                |
-| Start            | toggle fullscreen              | browser window fullscreen |
-| Select           | hide/show search bar + title card | —                     |
+| Gamepad   | Street View                    | Map                  |
+|-----------|--------------------------------|----------------------|
+| Y / A     | walk forward / backward        | pan north / south    |
+| X / B     | turn left / right              | pan west / east      |
+| D-pad     | look around                    | pan                  |
+| LB / RB   | zoom out / in                  | zoom out / in        |
+| Start     | toggle fullscreen (browser window) | same             |
+| Select    | hide/show search bar + title card  | same             |
 
-Holding a button auto-repeats the key.
+Holding a button repeats its action.
+
+In Street View, buttons are sent as arrow and `+`/`-` keys and the D-pad as a mouse drag. The map
+ignores synthetic key presses until a real key has been pressed on the page, so there the
+extension pans with a simulated mouse drag and zooms with mouse-wheel events instead.
 
 ## Ambient sound
 
-While you're in Street View, the extension plays the field recording made closest to your
-current position, taken from [radio aporee ::: maps](https://aporee.org/maps/), an open global
+The extension plays the field recording made closest to the position in the Maps URL (your
+Street View location, or the map centre), taken from [radio aporee ::: maps](https://aporee.org/maps/), an open global
 sound map of ~70,000 field recordings. Walking to a spot where a different recording is nearest
-crossfades to it. Sound pauses when you switch tabs or leave Street View.
+crossfades to it. Sound pauses when you switch tabs or leave Google Maps.
 
 - The list of recording locations (~1.8 MB) is downloaded once and cached for a week.
 - The settings panel shows what's playing, who recorded it, how far away it was recorded, and its
@@ -39,13 +44,13 @@ Click the extension's toolbar icon to open the settings panel:
 
 - **Horizontal / vertical look speed** – D-pad look speed per axis (px/s of simulated mouse drag; defaults 720 / 480).
 - **Ambient sound** on/off and **volume**.
-- **Console log level** – `Off`, `Info` (gamepad connect/disconnect, Select toggles; default) or `Debug` (every button change, plus whether the tab is detected as Street View).
+- **Console log level** – `Off`, `Info` (gamepad connect/disconnect, Select toggles; default) or `Debug` (every button change).
 
-Changes apply immediately to open Street View tabs.
+Changes apply immediately to open Google Maps tabs.
 
 ## Notes
 
-- Only active on Street View URLs (`…/@lat,lng,<n>a,…`) and while the tab is visible.
+- Active on all Google Maps pages (Street View and the normal map) while the tab is visible.
 - Key repeat rates are constants at the top of `inject.js`.
 - Gamepad input doesn't count as a user gesture, so the page can't call `requestFullscreen()`.
   Instead, Start asks the background worker to put the browser window into fullscreen.

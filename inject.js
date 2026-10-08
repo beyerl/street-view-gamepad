@@ -51,13 +51,16 @@
   };
 
   // --- Helpers ------------------------------------------------------------
-  const isStreetView = () => /@[^/]*,\d+a,/.test(location.href);
-
   const sceneCanvas = () =>
     document.querySelector("canvas.widget-scene-canvas") ||
     [...document.querySelectorAll("canvas")].sort(
       (a, b) => b.width * b.height - a.width * a.height
     )[0];
+
+  // Street View vs. the normal map. Street View is driven with keys; the normal
+  // map ignores synthetic keys until a real key has been pressed on the page,
+  // so there buttons pan by dragging and zoom with the wheel instead.
+  const isStreetView = () => /@[^/]*,\d+a,/.test(location.href);
 
   function sendKey(type, k, repeat = false) {
     const target = sceneCanvas() || document.body;
@@ -88,26 +91,52 @@
     (kind === "down" ? target : document).dispatchEvent(new MouseEvent(mType, common));
   }
 
-  // --- Held-key state -------------------------------------------------------
-  const held = new Map(); // button index -> { key, nextAt }
+  function sendWheel(deltaY) {
+    const target = sceneCanvas();
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    target.dispatchEvent(new WheelEvent("wheel", {
+      deltaY, deltaMode: 0,
+      clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+      bubbles: true, cancelable: true, composed: true, view: window,
+    }));
+  }
 
-  function updateKeyButton(idx, pressed, now) {
-    const k = KEY_BUTTONS[idx];
+  // --- Held buttons -----------------------------------------------------------
+  // A held button's action fires on press and then auto-repeats.
+  const keyAction = (k) => ({
+    down: (repeat) => sendKey("keydown", k, repeat),
+    up: () => sendKey("keyup", k),
+  });
+  const wheelAction = (deltaY) => ({ down: () => sendWheel(deltaY), up: () => {} });
+
+  const STREET_VIEW_ACTIONS = Object.fromEntries(
+    Object.entries(KEY_BUTTONS).map(([idx, k]) => [idx, keyAction(k)])
+  );
+  // ABXY are handled as panning (see tick) on the map.
+  const MAP_ACTIONS = {
+    [BTN.LB]: wheelAction(100),
+    [BTN.RB]: wheelAction(-100),
+  };
+
+  const held = new Map(); // button index -> { action, nextAt }
+
+  function updateHeldButton(idx, action, pressed, now) {
     const state = held.get(idx);
-    if (pressed && !state) {
-      sendKey("keydown", k);
-      held.set(idx, { key: k, nextAt: now + KEY_REPEAT_DELAY });
-    } else if (pressed && now >= state.nextAt) {
-      sendKey("keydown", k, true);
+    if (pressed && !state && action) {
+      action.down(false);
+      held.set(idx, { action, nextAt: now + KEY_REPEAT_DELAY });
+    } else if (pressed && state && now >= state.nextAt) {
+      state.action.down(true);
       state.nextAt = now + KEY_REPEAT_INTERVAL;
     } else if (!pressed && state) {
-      sendKey("keyup", k);
+      state.action.up();
       held.delete(idx);
     }
   }
 
   function releaseAllKeys() {
-    for (const [, state] of held) sendKey("keyup", state.key);
+    for (const [, state] of held) state.action.up();
     held.clear();
   }
 
@@ -196,22 +225,19 @@
   }
 
   // Maps re-renders these panels (e.g. a new title card after walking); keep
-  // them hidden. Show them again when leaving Street View so the normal map
-  // keeps its search bar.
+  // them hidden.
   setInterval(() => {
-    if (!overlayHidden) return;
-    if (!isStreetView()) overlayHidden = false;
-    applyOverlay();
+    if (overlayHidden) applyOverlay();
   }, 500);
 
   // --- Ambient sound ----------------------------------------------------------
-  // Report the Street View position to the background worker, which plays the
-  // nearest field recording. Positions are rounded to ~10 m so walking only
+  // Report the position in the URL (Street View location, or map centre) to the
+  // background worker, which plays the nearest field recording. Positions are rounded to ~10 m so walking only
   // triggers a lookup per step, not per URL tweak.
   let ambientKey = ""; // "" = unknown, so the first check always reports
 
   function updateAmbient() {
-    const m = location.href.match(/@(-?[\d.]+),(-?[\d.]+),\d+a,/);
+    const m = location.href.match(/@(-?[\d.]+),(-?[\d.]+),/);
     if (settings.soundEnabled && m && !document.hidden) {
       const lat = +m[1], lng = +m[2];
       const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
@@ -245,28 +271,36 @@
       .join("  ");
     if (desc === lastPressedLog) return;
     lastPressedLog = desc;
-    log("debug", `${desc}  streetView=${isStreetView()} canvas=${!!sceneCanvas()}`);
+    log("debug", `${desc}  canvas=${!!sceneCanvas()}`);
   }
 
-  function tick(now) {
+  // Polled on a timer rather than requestAnimationFrame: rAF depends on the
+  // page producing frames and can drop to ~1/s (seen in headless Chrome), which
+  // misses short button presses.
+  function tick() {
+    const now = performance.now();
     const dt = Math.min(now - lastFrame, 100); // clamp after tab stalls
     lastFrame = now;
     const pads = connectedPads();
     logButtons(pads);
-    if (!pads.length || !isStreetView() || document.hidden) {
+    if (!pads.length || document.hidden) {
       releaseAllKeys();
       releaseLook();
       startWasPressed = selectWasPressed = false;
     } else {
       const pressed = (i) => pads.some((gp) => gp.buttons[i]?.pressed);
 
+      const streetView = isStreetView();
+      const actions = streetView ? STREET_VIEW_ACTIONS : MAP_ACTIONS;
       for (const idx of Object.keys(KEY_BUTTONS)) {
-        updateKeyButton(Number(idx), pressed(Number(idx)), now);
+        updateHeldButton(Number(idx), actions[idx], pressed(Number(idx)), now);
       }
 
+      // D-pad looks around (Street View) / pans (map); on the map ABXY pan too.
+      const dir = (dpad, face) => pressed(dpad) || (!streetView && pressed(face));
       updateLook(
-        (pressed(BTN.RIGHT) ? 1 : 0) - (pressed(BTN.LEFT) ? 1 : 0),
-        (pressed(BTN.DOWN) ? 1 : 0) - (pressed(BTN.UP) ? 1 : 0),
+        (dir(BTN.RIGHT, BTN.B) ? 1 : 0) - (dir(BTN.LEFT, BTN.X) ? 1 : 0),
+        (dir(BTN.DOWN, BTN.A) ? 1 : 0) - (dir(BTN.UP, BTN.Y) ? 1 : 0),
         dt
       );
 
@@ -280,10 +314,9 @@
       if (select && !selectWasPressed) toggleOverlay();
       selectWasPressed = select;
     }
-    requestAnimationFrame(tick);
   }
 
   window.addEventListener("gamepadconnected", (e) => log("info", "connected:", e.gamepad.id));
   window.addEventListener("gamepaddisconnected", (e) => log("info", "disconnected:", e.gamepad.id));
-  requestAnimationFrame(tick);
+  setInterval(tick, 16);
 })();
