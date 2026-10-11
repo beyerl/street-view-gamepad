@@ -5,7 +5,7 @@ Maps map — with a gamepad.
 
 | Gamepad   | Street View                    | Map                  |
 |-----------|--------------------------------|----------------------|
-| Y / A     | walk forward / backward        | pan north / south    |
+| Y / A     | walk forward / backward (jumps to unconnected points, see below) | pan north / south    |
 | X / B     | turn left / right              | pan west / east      |
 | D-pad     | look around                    | pan                  |
 | LB / RB   | zoom out / in                  | zoom out / in        |
@@ -17,6 +17,24 @@ Holding a button repeats its action.
 In Street View, buttons are sent as arrow and `+`/`-` keys and the D-pad as a mouse drag. The map
 ignores synthetic key presses until a real key has been pressed on the page, so there the
 extension pans with a simulated mouse drag and zooms with mouse-wheel events instead.
+
+## Unconnected panoramas
+
+Google's own Street View images are linked to their neighbours, but user-contributed
+photospheres usually aren't, so walking does nothing there. If the panorama hasn't changed
+about a second after you press Y (or A), the extension searches for the nearest panorama, Google's
+or user-contributed, within ±40° of the walking direction, up to ~2 km ahead:
+
+- Within 15 m: it goes there straight away.
+- Farther: a dialog asks *"Do you really want to go in this direction? The next point is
+  xx m away."* Press the top face button to go there or the bottom one to abort (**X** / **B** on a
+  SNES-style pad, Y / A on an Xbox-style pad). Enter / Escape work too.
+- Nothing found: a short message says so.
+
+Holding Y walks normally and starts the search once you reach a dead end. A jump loads the
+new panorama's URL, so the page reloads, which takes a moment. The search uses the same
+unofficial endpoint the Maps web app uses (`/maps/photometa/si/v1`), so it may break if Google
+changes it. Distances and angles are constants (`JUMP_*`) in `inject.js`.
 
 ## Ambient sound
 
@@ -51,6 +69,7 @@ Changes apply immediately to open Google Maps tabs.
 ## Notes
 
 - Active on all Google Maps pages (Street View and the normal map) while the tab is visible.
+- The search bar hidden with Select stays hidden across page reloads in the same tab.
 - Key repeat rates are constants at the top of `inject.js`.
 - Gamepad input doesn't count as a user gesture, so the page can't call `requestFullscreen()`.
   Instead, Start asks the background worker to put the browser window into fullscreen.

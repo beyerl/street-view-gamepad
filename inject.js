@@ -188,7 +188,10 @@
   style.textContent = `[${HIDE_ATTR}] { visibility: hidden !important; pointer-events: none !important; }`;
   document.documentElement.appendChild(style);
 
+  // Remembered for the tab so it survives the page reload a jump causes.
+  const OVERLAY_KEY = "svgp-overlay-hidden";
   let overlayHidden = false;
+  try { overlayHidden = sessionStorage.getItem(OVERLAY_KEY) === "1"; } catch {}
 
   function overlayLayer() {
     let el = document.querySelector("#searchboxinput, form input");
@@ -220,6 +223,7 @@
 
   function toggleOverlay() {
     overlayHidden = !overlayHidden;
+    try { sessionStorage.setItem(OVERLAY_KEY, overlayHidden ? "1" : ""); } catch {}
     applyOverlay();
     log("info", overlayHidden ? "search bar hidden" : "search bar shown");
   }
@@ -255,9 +259,207 @@
   document.addEventListener("visibilitychange", updateAmbient);
   updateAmbient();
 
+  // --- Jump to unconnected panoramas -----------------------------------------
+  // User-contributed photospheres usually have no links to their neighbours, so
+  // walking (Y/A) does nothing. If the panorama hasn't changed shortly after a
+  // walk press, look for the nearest panorama roughly in the walking direction
+  // and go there, asking first if it is far away.
+  const JUMP_CHECK_DELAY = 1200; // ms after a walk press before we call it stuck
+  const JUMP_CONFIRM_DISTANCE = 15; // m; farther jumps ask for confirmation
+  const JUMP_MAX_ANGLE = 40; // ° a target may lie off the walking direction
+  const JUMP_STEPS = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]; // m ahead to search
+  // Dialog buttons by position: top confirms, bottom aborts. Labelled with the
+  // SNES-style names printed on those buttons (X top, B bottom).
+  const JUMP_CONFIRM = { btn: BTN.Y, label: "X", color: "#3949ab" };
+  const JUMP_ABORT = { btn: BTN.A, label: "B", color: "#f9a825" };
+
+  // Pano id, position and view from a Street View URL like
+  // /maps/@lat,lng,3a,75y,90h,90t/data=!3m...!1s<pano>!2e0...
+  function currentPano() {
+    const href = location.href;
+    const at = href.match(/@(-?[\d.]+),(-?[\d.]+),[^/]*?(?:,([\d.]+)y)?,([\d.]+)h(?:,([\d.]+)t)?/);
+    const id = href.match(/!1s([^!/?]+)!2e/);
+    if (!at || !id) return null;
+    return { id: decodeURIComponent(id[1]), lat: +at[1], lng: +at[2],
+             fov: at[3] || "75", heading: +at[4], tilt: at[5] || "90" };
+  }
+
+  const R_EARTH = 6371000;
+  const rad = Math.PI / 180;
+
+  function offset(lat, lng, bearing, m) {
+    return [lat + (m * Math.cos(bearing * rad)) / R_EARTH / rad,
+            lng + (m * Math.sin(bearing * rad)) / (R_EARTH * Math.cos(lat * rad)) / rad];
+  }
+
+  function distBearing(lat1, lng1, lat2, lng2) {
+    const x = (lng2 - lng1) * rad * Math.cos(((lat1 + lat2) / 2) * rad);
+    const y = (lat2 - lat1) * rad;
+    return { m: R_EARTH * Math.hypot(x, y), bearing: (Math.atan2(x, y) / rad + 360) % 360 };
+  }
+
+  // The panorama (Google's or user-contributed) nearest to a point, via the
+  // same endpoint the Maps web app uses. Same-origin, so no API key needed.
+  async function searchPano(lat, lng, radius) {
+    const pb = `!1m5!1sapiv3!5sUS!11m2!1m1!1b0!2m4!1m2!3d${lat}!4d${lng}!2d${Math.round(radius)}` +
+      "!3m18!2m2!1sen!2sUS!9m1!1e2!11m12!1m3!1e2!2b1!3e2!1m3!1e3!2b1!3e2!1m3!1e10!2b1!3e2" +
+      "!4m6!1e1!1e2!1e3!1e4!1e8!1e6";
+    const res = await fetch(`/maps/photometa/si/v1?pb=${encodeURIComponent(pb)}`);
+    if (!res.ok) throw new Error(`pano search: HTTP ${res.status}`);
+    const r = JSON.parse((await res.text()).replace(/^\)\]\}'/, ""))[1];
+    const pos = r?.[5]?.[0]?.[1]?.[0];
+    if (!r?.[1]?.[1] || !pos) return null;
+    return { type: r[1][0], id: r[1][1], lat: pos[2], lng: pos[3] };
+  }
+
+  // Search circles centred ever farther ahead, each about as wide as its
+  // distance, and keep the nearest hit that lies in the walking direction.
+  async function findPanoAhead(from, heading) {
+    const hits = await Promise.all(JUMP_STEPS.map((d) => {
+      const [lat, lng] = offset(from.lat, from.lng, heading, d);
+      return searchPano(lat, lng, d * 0.6).catch((err) => (log("info", err), null));
+    }));
+    let best = null;
+    for (const p of hits) {
+      if (!p || p.id === from.id) continue;
+      const { m, bearing } = distBearing(from.lat, from.lng, p.lat, p.lng);
+      const off = Math.abs(((bearing - heading + 540) % 360) - 180);
+      if (m < 1 || off > JUMP_MAX_ANGLE) continue;
+      if (!best || m < best.m) best = { ...p, m };
+    }
+    return best;
+  }
+
+  function goToPano(p, from, heading) {
+    // There is no public hook to switch panoramas in place, so load its URL.
+    const data = p.type === 2
+      ? `!3m4!1e1!3m2!1s${p.id}!2e0`
+      : `!3m5!1e1!3m3!1s${p.id}!2e10!3e11`;
+    location.assign(`${location.origin}/maps/@${p.lat},${p.lng},3a,${from.fov}y,` +
+      `${heading.toFixed(2)}h,${from.tilt}t/data=${data}${location.search}`);
+  }
+
+  // On-screen message box, also used for the confirmation dialog.
+  const box = document.createElement("div");
+  box.style.cssText = `position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    z-index: 2147483647; max-width: min(420px, 90vw); padding: 18px 22px; border-radius: 12px;
+    background: rgba(20, 20, 20, .88); color: #fff; font: 16px/1.4 system-ui, sans-serif;
+    text-align: center; box-shadow: 0 6px 24px rgba(0, 0, 0, .4); display: none;`;
+  let boxTimer = 0;
+
+  function showBox(html, ms = 0) {
+    clearTimeout(boxTimer);
+    box.innerHTML = html;
+    box.style.display = "block";
+    if (!box.isConnected) document.body.appendChild(box);
+    if (ms) boxTimer = setTimeout(hideBox, ms);
+  }
+
+  function hideBox() {
+    clearTimeout(boxTimer);
+    box.style.display = "none";
+  }
+
+  const fmtDistance = (m) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`);
+  const KEYCAP = "display: inline-block; min-width: 1.4em; padding: 0 .3em; border-radius: 50%; font-weight: 700;";
+
+  let jumpCheck = null; // { pano, at, back } – pending "did walking work?" check
+  let jumpSearch = 0; // increments to invalidate a running search
+  let searching = false;
+  let jumpDialog = null; // { target, from, heading, okWas, noWas } while asking
+
+  function cancelJump() {
+    jumpCheck = null;
+    jumpSearch++;
+    if (jumpDialog || searching) hideBox();
+    jumpDialog = null;
+    searching = false;
+  }
+
+  async function startJumpSearch(back) {
+    const from = currentPano();
+    if (!from) return;
+    const heading = (from.heading + (back ? 180 : 0)) % 360;
+    const seq = ++jumpSearch;
+    searching = true;
+    showBox("Searching for the next Street View point…");
+    const target = await findPanoAhead(from, heading);
+    if (seq !== jumpSearch) return;
+    searching = false;
+    const now = currentPano();
+    const turned = now && Math.abs(((now.heading - from.heading + 540) % 360) - 180) > JUMP_MAX_ANGLE;
+    if (now?.id !== from.id || turned) return hideBox(); // moved or turned away meanwhile
+    if (!target) {
+      showBox("No Street View point found in this direction.", 2500);
+      return;
+    }
+    log("info", `next point ${fmtDistance(target.m)} away:`, target.id);
+    if (target.m <= JUMP_CONFIRM_DISTANCE) {
+      hideBox();
+      goToPano(target, from, heading);
+      return;
+    }
+    jumpDialog = { target, from, heading, okWas: true, noWas: true };
+    showBox(`Do you really want to go in this direction?<br>
+      The next point is <b>${fmtDistance(target.m)}</b> away.<br><br>
+      <span style="${KEYCAP} background: ${JUMP_CONFIRM.color}">${JUMP_CONFIRM.label}</span> confirm &nbsp;&nbsp;
+      <span style="${KEYCAP} background: ${JUMP_ABORT.color}">${JUMP_ABORT.label}</span> abort`);
+  }
+
+  // Buttons that answered the dialog are ignored until released, so the
+  // answer doesn't also walk.
+  const swallowed = new Set();
+
+  function confirmJump(ok) {
+    const d = jumpDialog;
+    cancelJump();
+    swallowed.add(JUMP_CONFIRM.btn).add(JUMP_ABORT.btn);
+    if (ok) goToPano(d.target, d.from, d.heading);
+  }
+
+  // While the dialog is open, the confirm/abort buttons answer it. Requires a
+  // fresh press so a button already held when the dialog appears (e.g. the walk
+  // button that triggered it) doesn't answer it.
+  function updateJumpDialog(pressed) {
+    const ok = pressed(JUMP_CONFIRM.btn), no = pressed(JUMP_ABORT.btn);
+    if (ok && !jumpDialog.okWas) return confirmJump(true);
+    if (no && !jumpDialog.noWas) return confirmJump(false);
+    jumpDialog.okWas = ok;
+    jumpDialog.noWas = no;
+  }
+
+  // Keyboard fallback: Enter confirms, Escape aborts.
+  window.addEventListener("keydown", (e) => {
+    if (!jumpDialog || !e.isTrusted) return;
+    if (e.key === "Enter" || e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      confirmJump(e.key === "Enter");
+    }
+  }, true);
+
+  // Called every tick in Street View. `edge` is "fwd"/"back" on a walk press,
+  // `held` whether that walk button is still down. While held, every step to
+  // a new panorama restarts the wait, so holding Y into a dead end works too.
+  function updateJump(edge, held, now) {
+    if (edge && !searching) {
+      const pano = currentPano();
+      jumpCheck = pano && { pano: pano.id, at: now + JUMP_CHECK_DELAY, back: edge === "back" };
+    } else if (jumpCheck && held) {
+      const id = currentPano()?.id;
+      if (id && id !== jumpCheck.pano) Object.assign(jumpCheck, { pano: id, at: now + JUMP_CHECK_DELAY });
+    }
+    if (jumpCheck && now >= jumpCheck.at) {
+      const { pano, back } = jumpCheck;
+      jumpCheck = null;
+      if (currentPano()?.id === pano) startJumpSearch(back);
+    }
+  }
+
   // --- Main loop ------------------------------------------------------------
   let startWasPressed = false;
   let selectWasPressed = false;
+  let walkWasPressed = { fwd: false, back: false };
   let lastFrame = performance.now();
 
   const connectedPads = () =>
@@ -287,22 +489,42 @@
       releaseAllKeys();
       releaseLook();
       startWasPressed = selectWasPressed = false;
+      walkWasPressed = { fwd: false, back: false };
     } else {
-      const pressed = (i) => pads.some((gp) => gp.buttons[i]?.pressed);
+      const rawPressed = (i) => pads.some((gp) => gp.buttons[i]?.pressed);
+      for (const i of swallowed) if (!rawPressed(i)) swallowed.delete(i);
+      const pressed = (i) => rawPressed(i) && !swallowed.has(i);
 
       const streetView = isStreetView();
-      const actions = streetView ? STREET_VIEW_ACTIONS : MAP_ACTIONS;
-      for (const idx of Object.keys(KEY_BUTTONS)) {
-        updateHeldButton(Number(idx), actions[idx], pressed(Number(idx)), now);
+      if (!streetView) cancelJump();
+
+      if (jumpDialog) {
+        // The dialog owns the face buttons; nothing moves while it is open.
+        releaseAllKeys();
+        releaseLook();
+        updateJumpDialog(pressed);
+      } else {
+        const actions = streetView ? STREET_VIEW_ACTIONS : MAP_ACTIONS;
+        for (const idx of Object.keys(KEY_BUTTONS)) {
+          updateHeldButton(Number(idx), actions[idx], pressed(Number(idx)), now);
+        }
+
+        // D-pad looks around (Street View) / pans (map); on the map ABXY pan too.
+        const dir = (dpad, face) => pressed(dpad) || (!streetView && pressed(face));
+        updateLook(
+          (dir(BTN.RIGHT, BTN.B) ? 1 : 0) - (dir(BTN.LEFT, BTN.X) ? 1 : 0),
+          (dir(BTN.DOWN, BTN.A) ? 1 : 0) - (dir(BTN.UP, BTN.Y) ? 1 : 0),
+          dt
+        );
       }
 
-      // D-pad looks around (Street View) / pans (map); on the map ABXY pan too.
-      const dir = (dpad, face) => pressed(dpad) || (!streetView && pressed(face));
-      updateLook(
-        (dir(BTN.RIGHT, BTN.B) ? 1 : 0) - (dir(BTN.LEFT, BTN.X) ? 1 : 0),
-        (dir(BTN.DOWN, BTN.A) ? 1 : 0) - (dir(BTN.UP, BTN.Y) ? 1 : 0),
-        dt
-      );
+      const walk = { fwd: pressed(BTN.Y), back: pressed(BTN.A) };
+      if (streetView && !jumpDialog) {
+        const edge = walk.fwd && !walkWasPressed.fwd ? "fwd"
+          : walk.back && !walkWasPressed.back ? "back" : null;
+        updateJump(edge, jumpCheck?.back ? walk.back : walk.fwd, now);
+      }
+      walkWasPressed = walk;
 
       const start = pressed(BTN.START);
       if (start && !startWasPressed) {
