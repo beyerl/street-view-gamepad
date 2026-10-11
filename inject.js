@@ -261,17 +261,14 @@
 
   // --- Jump to unconnected panoramas -----------------------------------------
   // User-contributed photospheres usually have no links to their neighbours, so
-  // walking (Y/A) does nothing. If the panorama hasn't changed shortly after a
-  // walk press, look for the nearest panorama roughly in the walking direction
-  // and go there, asking first if it is far away.
+  // walking (Y/A) does nothing. Whenever the view direction changes, look up the
+  // nearest panorama roughly ahead and show its distance at the bottom of the
+  // screen. If the panorama hasn't changed shortly after a walk press, go there.
   const JUMP_CHECK_DELAY = 1200; // ms after a walk press before we call it stuck
-  const JUMP_CONFIRM_DISTANCE = 15; // m; farther jumps ask for confirmation
   const JUMP_MAX_ANGLE = 40; // ° a target may lie off the walking direction
   const JUMP_STEPS = [8, 16, 32, 64, 128, 256, 512, 1024, 2048]; // m ahead to search
-  // Dialog buttons by position: top confirms, bottom aborts. Labelled with the
-  // SNES-style names printed on those buttons (X top, B bottom).
-  const JUMP_CONFIRM = { btn: BTN.Y, label: "X", color: "#3949ab" };
-  const JUMP_ABORT = { btn: BTN.A, label: "B", color: "#f9a825" };
+  const AHEAD_DELAY = 400; // ms the view must rest before looking up the point ahead
+  const AHEAD_REUSE_ANGLE = 5; // ° the view may have turned and still use that lookup
 
   // Pano id, position and view from a Street View URL like
   // /maps/@lat,lng,3a,75y,90h,90t/data=!3m...!1s<pano>!2e0...
@@ -339,7 +336,9 @@
       `${heading.toFixed(2)}h,${from.tilt}t/data=${data}${location.search}`);
   }
 
-  // On-screen message box, also used for the confirmation dialog.
+  const angleDiff = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+
+  // On-screen message box for search progress and "nothing found".
   const box = document.createElement("div");
   box.style.cssText = `position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
     z-index: 2147483647; max-width: min(420px, 90vw); padding: 18px 22px; border-radius: 12px;
@@ -361,82 +360,89 @@
   }
 
   const fmtDistance = (m) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`);
-  const KEYCAP = "display: inline-block; min-width: 1.4em; padding: 0 .3em; border-radius: 50%; font-weight: 700;";
+
+  // Distance to the next point ahead, centred at the bottom of the screen.
+  const hint = document.createElement("div");
+  hint.style.cssText = `position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+    z-index: 2147483647; padding: 6px 14px; border-radius: 8px; pointer-events: none;
+    background: rgba(20, 20, 20, .75); color: #fff; font: 15px/1.4 system-ui, sans-serif;
+    white-space: nowrap; display: none;`;
+
+  function showHint(text) {
+    hint.textContent = text;
+    hint.style.display = text ? "block" : "none";
+    if (text && !hint.isConnected) document.body.appendChild(hint);
+  }
+
+  let ahead = null; // { pano, heading, target } – latest lookup for the view direction
+  let aheadView = null; // { id, heading } the view a lookup was last started for
+  let aheadTimer = 0;
+  let aheadSearch = 0; // increments to invalidate a running lookup
+
+  // Polled: start a lookup once the view has rested on a new panorama or heading.
+  function updateAhead() {
+    const p = isStreetView() && currentPano();
+    if (!p) {
+      clearTimeout(aheadTimer);
+      aheadSearch++;
+      ahead = aheadView = null;
+      showHint("");
+      return;
+    }
+    if (aheadView && aheadView.id === p.id && angleDiff(aheadView.heading, p.heading) < 1) return;
+    aheadView = { id: p.id, heading: p.heading };
+    clearTimeout(aheadTimer);
+    aheadTimer = setTimeout(async () => {
+      const seq = ++aheadSearch;
+      const target = await findPanoAhead(p, p.heading);
+      if (seq !== aheadSearch) return;
+      ahead = { pano: p.id, heading: p.heading, target };
+      showHint(target ? `Next jump point ${fmtDistance(target.m)}` : "No jump point in this direction");
+    }, AHEAD_DELAY);
+  }
+
+  setInterval(updateAhead, 250);
 
   let jumpCheck = null; // { pano, at, back } – pending "did walking work?" check
   let jumpSearch = 0; // increments to invalidate a running search
   let searching = false;
-  let jumpDialog = null; // { target, from, heading, okWas, noWas } while asking
 
   function cancelJump() {
     jumpCheck = null;
     jumpSearch++;
-    if (jumpDialog || searching) hideBox();
-    jumpDialog = null;
+    if (searching) hideBox();
     searching = false;
   }
 
+  // Go to the next point in the walking direction, reusing the lookup shown
+  // in the hint when it still matches the view.
   async function startJumpSearch(back) {
     const from = currentPano();
     if (!from) return;
     const heading = (from.heading + (back ? 180 : 0)) % 360;
-    const seq = ++jumpSearch;
-    searching = true;
-    showBox("Searching for the next Street View point…");
-    const target = await findPanoAhead(from, heading);
-    if (seq !== jumpSearch) return;
-    searching = false;
-    const now = currentPano();
-    const turned = now && Math.abs(((now.heading - from.heading + 540) % 360) - 180) > JUMP_MAX_ANGLE;
-    if (now?.id !== from.id || turned) return hideBox(); // moved or turned away meanwhile
+    let target;
+    if (!back && ahead?.pano === from.id && angleDiff(ahead.heading, from.heading) <= AHEAD_REUSE_ANGLE) {
+      target = ahead.target;
+    } else {
+      const seq = ++jumpSearch;
+      searching = true;
+      showBox("Searching for the next Street View point…");
+      target = await findPanoAhead(from, heading);
+      if (seq !== jumpSearch) return;
+      searching = false;
+      const now = currentPano();
+      if (now?.id !== from.id || angleDiff(now.heading, from.heading) > JUMP_MAX_ANGLE) {
+        return hideBox(); // moved or turned away meanwhile
+      }
+    }
     if (!target) {
       showBox("No Street View point found in this direction.", 2500);
       return;
     }
-    log("info", `next point ${fmtDistance(target.m)} away:`, target.id);
-    if (target.m <= JUMP_CONFIRM_DISTANCE) {
-      hideBox();
-      goToPano(target, from, heading);
-      return;
-    }
-    jumpDialog = { target, from, heading, okWas: true, noWas: true };
-    showBox(`Do you really want to go in this direction?<br>
-      The next point is <b>${fmtDistance(target.m)}</b> away.<br><br>
-      <span style="${KEYCAP} background: ${JUMP_CONFIRM.color}">${JUMP_CONFIRM.label}</span> confirm &nbsp;&nbsp;
-      <span style="${KEYCAP} background: ${JUMP_ABORT.color}">${JUMP_ABORT.label}</span> abort`);
+    log("info", `jumping ${fmtDistance(target.m)} to`, target.id);
+    hideBox();
+    goToPano(target, from, heading);
   }
-
-  // Buttons that answered the dialog are ignored until released, so the
-  // answer doesn't also walk.
-  const swallowed = new Set();
-
-  function confirmJump(ok) {
-    const d = jumpDialog;
-    cancelJump();
-    swallowed.add(JUMP_CONFIRM.btn).add(JUMP_ABORT.btn);
-    if (ok) goToPano(d.target, d.from, d.heading);
-  }
-
-  // While the dialog is open, the confirm/abort buttons answer it. Requires a
-  // fresh press so a button already held when the dialog appears (e.g. the walk
-  // button that triggered it) doesn't answer it.
-  function updateJumpDialog(pressed) {
-    const ok = pressed(JUMP_CONFIRM.btn), no = pressed(JUMP_ABORT.btn);
-    if (ok && !jumpDialog.okWas) return confirmJump(true);
-    if (no && !jumpDialog.noWas) return confirmJump(false);
-    jumpDialog.okWas = ok;
-    jumpDialog.noWas = no;
-  }
-
-  // Keyboard fallback: Enter confirms, Escape aborts.
-  window.addEventListener("keydown", (e) => {
-    if (!jumpDialog || !e.isTrusted) return;
-    if (e.key === "Enter" || e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      confirmJump(e.key === "Enter");
-    }
-  }, true);
 
   // Called every tick in Street View. `edge` is "fwd"/"back" on a walk press,
   // `held` whether that walk button is still down. While held, every step to
@@ -491,35 +497,26 @@
       startWasPressed = selectWasPressed = false;
       walkWasPressed = { fwd: false, back: false };
     } else {
-      const rawPressed = (i) => pads.some((gp) => gp.buttons[i]?.pressed);
-      for (const i of swallowed) if (!rawPressed(i)) swallowed.delete(i);
-      const pressed = (i) => rawPressed(i) && !swallowed.has(i);
+      const pressed = (i) => pads.some((gp) => gp.buttons[i]?.pressed);
 
       const streetView = isStreetView();
       if (!streetView) cancelJump();
 
-      if (jumpDialog) {
-        // The dialog owns the face buttons; nothing moves while it is open.
-        releaseAllKeys();
-        releaseLook();
-        updateJumpDialog(pressed);
-      } else {
-        const actions = streetView ? STREET_VIEW_ACTIONS : MAP_ACTIONS;
-        for (const idx of Object.keys(KEY_BUTTONS)) {
-          updateHeldButton(Number(idx), actions[idx], pressed(Number(idx)), now);
-        }
-
-        // D-pad looks around (Street View) / pans (map); on the map ABXY pan too.
-        const dir = (dpad, face) => pressed(dpad) || (!streetView && pressed(face));
-        updateLook(
-          (dir(BTN.RIGHT, BTN.B) ? 1 : 0) - (dir(BTN.LEFT, BTN.X) ? 1 : 0),
-          (dir(BTN.DOWN, BTN.A) ? 1 : 0) - (dir(BTN.UP, BTN.Y) ? 1 : 0),
-          dt
-        );
+      const actions = streetView ? STREET_VIEW_ACTIONS : MAP_ACTIONS;
+      for (const idx of Object.keys(KEY_BUTTONS)) {
+        updateHeldButton(Number(idx), actions[idx], pressed(Number(idx)), now);
       }
 
+      // D-pad looks around (Street View) / pans (map); on the map ABXY pan too.
+      const dir = (dpad, face) => pressed(dpad) || (!streetView && pressed(face));
+      updateLook(
+        (dir(BTN.RIGHT, BTN.B) ? 1 : 0) - (dir(BTN.LEFT, BTN.X) ? 1 : 0),
+        (dir(BTN.DOWN, BTN.A) ? 1 : 0) - (dir(BTN.UP, BTN.Y) ? 1 : 0),
+        dt
+      );
+
       const walk = { fwd: pressed(BTN.Y), back: pressed(BTN.A) };
-      if (streetView && !jumpDialog) {
+      if (streetView) {
         const edge = walk.fwd && !walkWasPressed.fwd ? "fwd"
           : walk.back && !walkWasPressed.back ? "back" : null;
         updateJump(edge, jumpCheck?.back ? walk.back : walk.fwd, now);

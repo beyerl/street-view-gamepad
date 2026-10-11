@@ -21,15 +21,14 @@ extension pans with a simulated mouse drag and zooms with mouse-wheel events ins
 ## Unconnected panoramas
 
 Google's own Street View images are linked to their neighbours, but user-contributed
-photospheres usually aren't, so walking does nothing there. If the panorama hasn't changed
-about a second after you press Y (or A), the extension searches for the nearest panorama, Google's
-or user-contributed, within ±40° of the walking direction, up to ~2 km ahead:
+photospheres usually aren't, so walking does nothing there. Whenever the view direction
+changes, the extension looks up the nearest panorama, Google's or user-contributed, within ±40°
+of the view direction, up to ~2 km ahead, and shows *"Next jump point xx m"* centred at the
+bottom of the screen (or *"No jump point in this direction"*).
 
-- Within 15 m: it goes there straight away.
-- Farther: a dialog asks *"Do you really want to go in this direction? The next point is
-  xx m away."* Press the top face button to go there or the bottom one to abort (**X** / **B** on a
-  SNES-style pad, Y / A on an Xbox-style pad). Enter / Escape work too.
-- Nothing found: a short message says so.
+If the panorama hasn't changed about a second after you press Y, the extension goes straight
+to that point, without asking. A (backward) does the same for the opposite direction, searching
+on demand. If nothing is found, a short message says so.
 
 Holding Y walks normally and starts the search once you reach a dead end. A jump loads the
 new panorama's URL, so the page reloads, which takes a moment. The search uses the same
