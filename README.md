@@ -6,8 +6,9 @@ Maps map — with a gamepad.
 | Gamepad   | Street View                    | Map                  |
 |-----------|--------------------------------|----------------------|
 | Y / A     | walk forward / backward (jumps to unconnected points, see below) | pan north / south    |
-| X / B     | turn left / right              | pan west / east      |
-| D-pad     | look around                    | pan                  |
+| X         | switch mode (see below)        | same                 |
+| B         | action of the current mode     | same                 |
+| D-pad     | look around / turn             | pan                  |
 | LB / RB   | zoom out / in                  | zoom out / in        |
 | Start     | toggle fullscreen (browser window) | same             |
 | Select    | hide/show search bar + title card  | same             |
@@ -17,6 +18,31 @@ Holding a button repeats its action.
 In Street View, buttons are sent as arrow and `+`/`-` keys and the D-pad as a mouse drag. The map
 ignores synthetic key presses until a real key has been pressed on the page, so there the
 extension pans with a simulated mouse drag and zooms with mouse-wheel events instead.
+
+## Modes
+
+The lower right corner shows the modes as icons, the current one highlighted with a short label.
+The box is placed next to Google's own controls there (zoom, compass, floor picker,
+attribution), never on top of them. It only shows while a gamepad is connected. The current
+mode is remembered for the tab.
+
+- **Floors** (layers icon): in places with several mapped floors, such as Tokyo Station, B goes
+  one floor up, and from the top floor back to the bottom one. The icon is blue when there is a
+  floor picker and gray otherwise; the label shows the current floor. Google's markup is
+  obfuscated, so the picker is recognised by its shape: a vertical column of short labels like
+  `B1`, `1`, `2F` in the right half of the screen. If Google changes it, this may stop working.
+  Set the log level to *Debug* to see what was found.
+- **Audio commentary** (speaker icon): the icon turns orange when there is a Wikipedia article
+  about a place within 500 m, and the label shows its title. B plays it, pauses it and resumes
+  it. Nothing plays automatically. If the article has a [Spoken
+  Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:WikiProject_Spoken_Wikipedia) recording,
+  you hear that person reading it. Otherwise a built-in voice reads the article's
+  introduction (see *Text-to-speech*). Articles come from English Wikipedia, or else from the
+  Wikipedia in your browser's language. Among the closest ten, longer articles win over slightly nearer ones, so the
+  Brandenburg Gate beats the office next door. The ambient sound gets quieter while the
+  commentary plays. A commentary keeps playing when you walk on or jump, and pauses when you
+  switch tabs. If you've moved on to another article, B starts that one instead of resuming
+  the old one.
 
 ## Unconnected panoramas
 
@@ -49,6 +75,27 @@ crossfades to it. Sound pauses when you switch tabs or leave Google Maps.
   so the extension sets that `Referer` on its own API requests (a `declarativeNetRequest` session
   rule limited to requests made by the extension).
 
+## Text-to-speech
+
+Most articles have no Spoken Wikipedia recording. Those are read aloud by
+[Piper](https://github.com/rhasspy/piper), a neural voice that runs inside the extension (in the
+offscreen document, via WebAssembly). Chrome's own speech isn't used because the Chromium snap has
+no voices at all.
+
+- The runtime ships with the extension in `vendor/`: ONNX Runtime Web 1.18.0 and the Piper/espeak-ng
+  phonemizer from `@diffusionstudio/piper-wasm` 1.0.0, both MIT, ~11 MB together.
+- Voices: `en_US-lessac-low`, and `de_DE-thorsten-low` for German articles. Each is ~60 MB and is
+  downloaded from Hugging Face (`rhasspy/piper-voices`) the first time it's needed, together with
+  espeak-ng's pronunciation data (~18 MB, jsDelivr). After that they come from the browser's cache,
+  so it works offline. A message on screen shows the download progress.
+- The voice loads as soon as commentary mode finds an article without a recording, so pressing B
+  only waits for the first sentence (a few seconds). After that, sentences are synthesized while
+  the previous one plays.
+- These are the "low" quality voices. On a 2012 dual-core laptop (Pentium B960) they synthesize at
+  about 0.7× real time. The "medium" ones need ~1.15× and would stutter. Voices are listed in
+  `VOICES` in `piper.js`.
+- The extension pages allow `'wasm-unsafe-eval'` (see `manifest.json`), which WebAssembly needs.
+
 ## Install
 
 1. Open `chrome://extensions`, enable **Developer mode**.
@@ -60,13 +107,18 @@ crossfades to it. Sound pauses when you switch tabs or leave Google Maps.
 Click the extension's toolbar icon to open the settings panel:
 
 - **Horizontal / vertical look speed** – D-pad look speed per axis (px/s of simulated mouse drag; defaults 720 / 480).
-- **Ambient sound** on/off and **volume**.
+- **Ambient sound** on/off.
+- **Master volume** scales the **soundscape volume** (ambient recordings) and the **commentary
+  volume** (spoken articles). Changes apply immediately.
 - **Console log level** – `Off`, `Info` (gamepad connect/disconnect, Select toggles; default) or `Debug` (every button change).
 
 Changes apply immediately to open Google Maps tabs.
 
 ## Notes
 
+- Commentary uses the public Wikipedia and Wikimedia Commons APIs, looked up only in audio
+  commentary mode and after moving 50 m. Spoken Wikipedia recordings and Wikipedia text are
+  CC BY-SA.
 - Active on all Google Maps pages (Street View and the normal map) while the tab is visible.
 - The search bar hidden with Select stays hidden across page reloads in the same tab.
 - Key repeat rates are constants at the top of `inject.js`.

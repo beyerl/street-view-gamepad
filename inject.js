@@ -25,13 +25,11 @@
     zoomOut: { key: "-", code: "Minus", keyCode: 189 },
   };
 
-  // Buttons that act as held, auto-repeating keys. ABXY follow the diamond
-  // layout of the face buttons: Y top, A bottom, X left, B right.
+  // Buttons that act as held, auto-repeating keys: Y walks forward, A back.
+  // Turning is left to the D-pad; X and B switch and use modes (see Modes).
   const KEY_BUTTONS = {
     [BTN.Y]: KEYS.up,
     [BTN.A]: KEYS.down,
-    [BTN.X]: KEYS.left,
-    [BTN.B]: KEYS.right,
     [BTN.LB]: KEYS.zoomOut,
     [BTN.RB]: KEYS.zoomIn,
   };
@@ -60,7 +58,19 @@
   // Street View vs. the normal map. Street View is driven with keys; the normal
   // map ignores synthetic keys until a real key has been pressed on the page,
   // so there buttons pan by dragging and zoom with the wheel instead.
-  const isStreetView = () => /@[^/]*,\d+a,/.test(location.href);
+  // Recognised by the "3a" view part of the URL, or by a panorama id
+  // (!1s<id>!2e) in the data part: indoor panoramas with several floors don't
+  // always carry the former. (!1e1 alone is the map's Street View coverage layer.)
+  const isStreetView = () =>
+    /@[^/]*,\d+(?:\.\d+)?a,/.test(location.href) ||
+    /\/data=[^?#]*!1s[^!/?]+!2e\d/.test(location.href);
+
+  let lastStreetView = null;
+  function logStreetView(streetView) {
+    if (streetView === lastStreetView) return;
+    lastStreetView = streetView;
+    log("debug", `${streetView ? "Street View" : "map"}: ${location.href}`);
+  }
 
   function sendKey(type, k, repeat = false) {
     const target = sceneCanvas() || document.body;
@@ -113,7 +123,7 @@
   const STREET_VIEW_ACTIONS = Object.fromEntries(
     Object.entries(KEY_BUTTONS).map(([idx, k]) => [idx, keyAction(k)])
   );
-  // ABXY are handled as panning (see tick) on the map.
+  // Y/A are handled as panning (see tick) on the map.
   const MAP_ACTIONS = {
     [BTN.LB]: wheelAction(100),
     [BTN.RB]: wheelAction(-100),
@@ -462,9 +472,258 @@
     }
   }
 
+  // --- Modes ------------------------------------------------------------------
+  // X cycles through the modes, B performs the current mode's action. The modes
+  // are shown in the lower right corner, placed clear of Maps' own controls.
+  const MODES = ["levels", "commentary"];
+  const MODE_KEY = "svgp-mode"; // per tab, survives the reload a jump causes
+  let mode = MODES[0];
+  try {
+    const saved = sessionStorage.getItem(MODE_KEY);
+    if (MODES.includes(saved)) mode = saved;
+  } catch {}
+
+  function nextMode() {
+    mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
+    try { sessionStorage.setItem(MODE_KEY, mode); } catch {}
+    log("info", "mode:", mode);
+    if (mode === "commentary") {
+      commentaryPos = null;
+      updateCommentaryLookup();
+    }
+    renderHud();
+  }
+
+  function modeAction() {
+    if (mode === "levels") nextLevel();
+    else if (mode === "commentary") toggleCommentary();
+  }
+
+  // --- Map levels -------------------------------------------------------------
+  // Indoor places such as big stations have a floor picker: a vertical stack of
+  // short labels ("B1", "1", "2F", …) near the right edge, highest floor on
+  // top. Maps' markup is obfuscated, so find it by shape rather than by class.
+  const LEVEL_RE = /^(?:-?\d{1,3}[A-Z]{0,2}|[A-Z]{1,2}-?\d{0,2}[A-Z]?)$/i;
+  const LEVEL_SEL = 'button, [role="button"], [role="radio"], [role="option"], [role="menuitemradio"], [role="tab"]';
+  let lastLevel = ""; // label we last switched to, if the picker doesn't mark the current one
+
+  const visible = (el) => el.checkVisibility({ visibilityProperty: true, opacityProperty: true });
+
+  function findLevelPicker() {
+    const cands = [];
+    for (const el of document.querySelectorAll(LEVEL_SEL)) {
+      if (hud.contains(el) || el.querySelector(LEVEL_SEL)) continue; // innermost only
+      const label = el.textContent.trim();
+      if (!LEVEL_RE.test(label) || /^3D$/i.test(label)) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || r.left < window.innerWidth / 2 || !visible(el)) continue;
+      cands.push({ el, label, x: r.left + r.width / 2, y: r.top });
+    }
+    // Cluster by horizontal centre; the biggest column of 2+ is the picker.
+    let best = [];
+    for (const c of cands) {
+      const col = cands.filter((o) => Math.abs(o.x - c.x) < 8);
+      if (col.length > best.length) best = col;
+    }
+    if (best.length < 2) return null;
+    const items = best.sort((a, b) => a.y - b.y); // top (highest floor) first
+    return { items, current: currentLevel(items) };
+  }
+
+  function currentLevel(items) {
+    const ATTRS = ["aria-checked", "aria-pressed", "aria-selected"];
+    const isOn = (e) =>
+      ATTRS.some((a) => e.getAttribute(a) === "true") ||
+      (e.hasAttribute("aria-current") && e.getAttribute("aria-current") !== "false");
+    let i = items.findIndex(({ el }) => isOn(el) || isOn(el.parentElement) || [...el.querySelectorAll("*")].some(isOn));
+    if (i >= 0) return i;
+    // Otherwise the selected one is usually the only one styled differently.
+    if (items.length >= 3) {
+      const sig = items.map(({ el }) => {
+        const cs = getComputedStyle(el);
+        return `${cs.color}|${cs.backgroundColor}|${cs.fontWeight}`;
+      });
+      const odd = sig.filter((s) => sig.indexOf(s) === sig.lastIndexOf(s));
+      if (odd.length === 1) return sig.indexOf(odd[0]);
+    }
+    return items.findIndex((it) => it.label === lastLevel);
+  }
+
+  function clickElement(el) {
+    const r = el.getBoundingClientRect();
+    const common = {
+      clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, button: 0,
+      bubbles: true, cancelable: true, composed: true, view: window,
+    };
+    el.dispatchEvent(new PointerEvent("pointerdown", { ...common, buttons: 1, pointerId: 1, isPrimary: true }));
+    el.dispatchEvent(new MouseEvent("mousedown", { ...common, buttons: 1 }));
+    el.dispatchEvent(new PointerEvent("pointerup", { ...common, buttons: 0, pointerId: 1, isPrimary: true }));
+    el.dispatchEvent(new MouseEvent("mouseup", { ...common, buttons: 0 }));
+    el.dispatchEvent(new MouseEvent("click", { ...common, buttons: 0 }));
+  }
+
+  // One floor up; from the top floor (or an unknown one) start at the bottom.
+  function nextLevel() {
+    const picker = findLevelPicker();
+    if (!picker) {
+      showBox("No floors to switch between here.", 1500);
+      return;
+    }
+    const { items, current } = picker;
+    const target = current > 0 ? items[current - 1] : items[items.length - 1];
+    log("debug", `levels [${items.map((it) => it.label)}], current ${items[current]?.label ?? "?"} -> ${target.label}`);
+    lastLevel = target.label;
+    clickElement(target.el);
+    setTimeout(renderHud, 300);
+  }
+
+  // --- Audio commentary -------------------------------------------------------
+  // The background worker finds the Wikipedia article nearest to the position
+  // and plays its Spoken Wikipedia recording, or reads its introduction aloud.
+  // Nothing plays until B is pressed.
+  const COMMENTARY_MOVE = 50; // m to move before looking up the nearest article again
+  let commentary = { available: false, title: "", status: "stopped", playingTitle: "" };
+  let commentaryPos = null; // where the last lookup was made
+
+  window.addEventListener("message", (e) => {
+    if (e.source !== window || e.data?.source !== "sv-gamepad-bridge") return;
+    if (e.data.type === "commentary") {
+      commentary = e.data.state;
+      renderHud();
+    } else if (e.data.type === "commentaryNotice") {
+      if (e.data.message) showBox(e.data.message, e.data.ms);
+      else hideBox();
+    }
+  });
+
+  function updateCommentaryLookup() {
+    if (mode !== "commentary" || document.hidden) return;
+    const m = location.href.match(/@(-?[\d.]+),(-?[\d.]+),/);
+    if (!m) return;
+    const lat = +m[1], lng = +m[2];
+    if (commentaryPos && distBearing(commentaryPos.lat, commentaryPos.lng, lat, lng).m < COMMENTARY_MOVE) return;
+    commentaryPos = { lat, lng };
+    window.postMessage({ source: "sv-gamepad", type: "commentaryAt", lat, lng }, "*");
+  }
+
+  function toggleCommentary() {
+    if (!commentary.available && commentary.status === "stopped") {
+      showBox("No commentary for this place.", 1500);
+      return;
+    }
+    window.postMessage({ source: "sv-gamepad", type: "commentaryToggle" }, "*");
+  }
+
+  setInterval(updateCommentaryLookup, 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) window.postMessage({ source: "sv-gamepad", type: "commentaryPause" }, "*");
+    else updateCommentaryLookup();
+  });
+
+  // --- Mode display -----------------------------------------------------------
+  const ICONS = {
+    // Material "layers" and "volume_up"
+    levels: '<svg viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>',
+    commentary: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>',
+  };
+  const HUD_MARGIN = 12; // px from the window edge / from Maps' controls
+
+  style.textContent += `
+    #svgp-hud { position: fixed; right: ${HUD_MARGIN}px; bottom: ${HUD_MARGIN}px; z-index: 2147483646;
+      display: flex; gap: 4px; padding: 4px; border-radius: 10px; pointer-events: none;
+      background: rgba(20, 20, 20, .78); font: 13px/1 system-ui, sans-serif; color: #fff; }
+    #svgp-hud .m { display: flex; align-items: center; gap: 6px; padding: 5px 7px; border-radius: 7px;
+      color: #80868b; opacity: .6; }
+    #svgp-hud .m.active { opacity: 1; background: rgba(255, 255, 255, .16); }
+    #svgp-hud .m.on[data-mode=levels] { color: #4fc3f7; }
+    #svgp-hud .m.on[data-mode=commentary] { color: #ffb74d; }
+    #svgp-hud .m.playing svg { animation: svgp-pulse 1.2s ease-in-out infinite; }
+    #svgp-hud svg { width: 20px; height: 20px; fill: currentColor; }
+    #svgp-hud span { color: #fff; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #svgp-hud .m:not(.active) span, #svgp-hud span:empty { display: none; }
+    @keyframes svgp-pulse { 50% { opacity: .4; } }`;
+
+  const hud = document.createElement("div");
+  hud.id = "svgp-hud";
+  hud.innerHTML = MODES.map((m) => `<div class="m" data-mode="${m}">${ICONS[m]}<span></span></div>`).join("");
+  const chip = Object.fromEntries(MODES.map((m) => [m, hud.querySelector(`[data-mode=${m}]`)]));
+
+  function renderHud() {
+    const show = connectedPads().length > 0;
+    hud.style.display = show ? "flex" : "none";
+    if (!show) return;
+    if (!hud.isConnected) document.body.appendChild(hud);
+    for (const m of MODES) chip[m].classList.toggle("active", m === mode);
+
+    const picker = findLevelPicker();
+    chip.levels.classList.toggle("on", !!picker);
+    chip.levels.querySelector("span").textContent =
+      picker ? `Floor ${picker.items[picker.current]?.label ?? "?"}` : "No floors here";
+
+    const c = commentary;
+    chip.commentary.classList.toggle("on", c.available || c.status !== "stopped");
+    chip.commentary.classList.toggle("playing", c.status === "playing");
+    chip.commentary.querySelector("span").textContent =
+      c.status === "playing" ? c.playingTitle
+      : c.status === "paused" ? `⏸ ${c.playingTitle}`
+      : c.available ? c.title : "Nothing nearby";
+  }
+
+  // Maps' own controls in the lower part of the screen (zoom, compass, floor
+  // picker, attribution, …): leaf elements that actually paint something, plus
+  // controls and images. Big layers like the scene canvas don't count.
+  function obstacles() {
+    const W = window.innerWidth, H = window.innerHeight;
+    const out = [];
+    for (const el of document.body.querySelectorAll("*")) {
+      if (hud.contains(el)) continue;
+      const control = /^(BUTTON|A|INPUT|IMG|CANVAS|svg|VIDEO)$/.test(el.tagName);
+      if (el.childElementCount && !control) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || r.right < W / 3 || r.bottom < H / 2 || r.width * r.height > W * H / 4) continue;
+      if (!visible(el)) continue;
+      if (!control && !el.textContent.trim()) {
+        const cs = getComputedStyle(el);
+        const paints = cs.backgroundColor !== "rgba(0, 0, 0, 0)" || cs.backgroundImage !== "none" ||
+          cs.borderStyle !== "none" || cs.boxShadow !== "none";
+        if (!paints) continue;
+      }
+      out.push(r);
+    }
+    return out;
+  }
+
+  // Closest spot to the corner that is clear of every obstacle: try each
+  // combination of "flush with the edge" and "just left of / above an obstacle".
+  function placeHud() {
+    if (hud.style.display === "none" || !hud.isConnected) return;
+    const W = window.innerWidth, H = window.innerHeight;
+    const { width: w, height: h } = hud.getBoundingClientRect();
+    const obs = obstacles();
+    const rights = [HUD_MARGIN, ...obs.map((r) => W - r.left + HUD_MARGIN / 2)];
+    const bottoms = [HUD_MARGIN, ...obs.map((r) => H - r.top + HUD_MARGIN / 2)];
+    let best = null;
+    for (const right of rights) {
+      for (const bottom of bottoms) {
+        const l = W - right - w, t = H - bottom - h, rr = W - right, b = H - bottom;
+        if (l < W / 3 || t < H / 2) continue;
+        if (obs.some((o) => o.left < rr + 2 && o.right > l - 2 && o.top < b + 2 && o.bottom > t - 2)) continue;
+        if (!best || right + bottom < best.right + best.bottom) best = { right, bottom };
+      }
+    }
+    best ||= { right: HUD_MARGIN, bottom: HUD_MARGIN };
+    hud.style.right = `${best.right}px`;
+    hud.style.bottom = `${best.bottom}px`;
+  }
+
+  setInterval(renderHud, 500);
+  setInterval(placeHud, 1000);
+
   // --- Main loop ------------------------------------------------------------
   let startWasPressed = false;
   let selectWasPressed = false;
+  let modeWasPressed = false;
+  let actionWasPressed = false;
   let walkWasPressed = { fwd: false, back: false };
   let lastFrame = performance.now();
 
@@ -494,12 +753,13 @@
     if (!pads.length || document.hidden) {
       releaseAllKeys();
       releaseLook();
-      startWasPressed = selectWasPressed = false;
+      startWasPressed = selectWasPressed = modeWasPressed = actionWasPressed = false;
       walkWasPressed = { fwd: false, back: false };
     } else {
       const pressed = (i) => pads.some((gp) => gp.buttons[i]?.pressed);
 
       const streetView = isStreetView();
+      logStreetView(streetView);
       if (!streetView) cancelJump();
 
       const actions = streetView ? STREET_VIEW_ACTIONS : MAP_ACTIONS;
@@ -507,10 +767,10 @@
         updateHeldButton(Number(idx), actions[idx], pressed(Number(idx)), now);
       }
 
-      // D-pad looks around (Street View) / pans (map); on the map ABXY pan too.
+      // D-pad looks around (Street View) / pans (map); on the map Y/A pan too.
       const dir = (dpad, face) => pressed(dpad) || (!streetView && pressed(face));
       updateLook(
-        (dir(BTN.RIGHT, BTN.B) ? 1 : 0) - (dir(BTN.LEFT, BTN.X) ? 1 : 0),
+        (pressed(BTN.RIGHT) ? 1 : 0) - (pressed(BTN.LEFT) ? 1 : 0),
         (dir(BTN.DOWN, BTN.A) ? 1 : 0) - (dir(BTN.UP, BTN.Y) ? 1 : 0),
         dt
       );
@@ -532,6 +792,14 @@
       const select = pressed(BTN.SELECT);
       if (select && !selectWasPressed) toggleOverlay();
       selectWasPressed = select;
+
+      const modeBtn = pressed(BTN.X);
+      if (modeBtn && !modeWasPressed) nextMode();
+      modeWasPressed = modeBtn;
+
+      const actionBtn = pressed(BTN.B);
+      if (actionBtn && !actionWasPressed) modeAction();
+      actionWasPressed = actionBtn;
     }
   }
 

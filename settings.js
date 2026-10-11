@@ -5,5 +5,7 @@ const SVG_DEFAULTS = {
   lookSpeedY: 480,
   logLevel: "info", // "off" | "info" | "debug"
   soundEnabled: true, // ambient field recording nearest to the location
-  volume: 50, // 0-100
+  masterVolume: 100, // 0-100, scales both of the following
+  volume: 50, // 0-100, soundscape (ambient recordings)
+  commentaryVolume: 100, // 0-100, spoken articles
 };

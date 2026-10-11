@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Street View Gamepad",
-  "version": "1.5.0",
-  "description": "Control Google Maps and Street View with a gamepad and hear ambient field recordings from nearby (radio aporee ::: maps).",
+  "version": "1.6.0",
+  "description": "Control Google Maps and Street View with a gamepad and hear ambient field recordings from nearby (radio aporee ::: maps) and spoken Wikipedia articles about the place.",
   "permissions": [
     "storage",
     "offscreen",
@@ -45,11 +45,19 @@
       "run_at": "document_idle"
     }
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Street View Gamepad settings"
   },
   "host_permissions": [
-    "https://aporee.org/*"
+    "https://aporee.org/*",
+    "https://*.wikipedia.org/*",
+    "https://commons.wikimedia.org/*",
+    "https://huggingface.co/*",
+    "https://*.hf.co/*",
+    "https://cdn.jsdelivr.net/*"
   ]
 }

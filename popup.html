@@ -32,8 +32,16 @@
     <input type="checkbox" id="soundEnabled"> Ambient sound from nearby recordings
   </label>
   <label>
-    <div class="row"><span>Volume</span><output id="volume-out"></output></div>
+    <div class="row"><span>Master volume</span><output id="masterVolume-out"></output></div>
+    <input type="range" id="masterVolume" min="0" max="100" step="1">
+  </label>
+  <label>
+    <div class="row"><span>Soundscape volume</span><output id="volume-out"></output></div>
     <input type="range" id="volume" min="0" max="100" step="1">
+  </label>
+  <label>
+    <div class="row"><span>Commentary volume</span><output id="commentaryVolume-out"></output></div>
+    <input type="range" id="commentaryVolume" min="0" max="100" step="1">
   </label>
   <div id="nowPlaying" hidden>
     <div class="np-head">Now playing</div>
