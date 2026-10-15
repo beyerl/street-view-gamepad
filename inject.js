@@ -8,12 +8,13 @@
   const KEY_REPEAT_INTERVAL = 120; // ms between repeats while held
   const LOOK_REANCHOR = 250; // re-grab the view after dragging this far
 
-  // Standard Gamepad mapping (https://w3c.github.io/gamepad/#remapping)
-  const BTN = {
-    A: 0, B: 1, X: 2, Y: 3,
-    LB: 4, RB: 5,
-    SELECT: 8, START: 9,
-    UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15,
+  // Default action -> button index, in the Standard Gamepad mapping
+  // (https://w3c.github.io/gamepad/#remapping). Keep in sync with settings.js; the user
+  // can remap these in the key mapping window (mapping.html).
+  const DEFAULT_BUTTON_MAP = {
+    forward: 3, back: 0, zoomOut: 4, zoomIn: 5,
+    lookUp: 12, lookDown: 13, lookLeft: 14, lookRight: 15,
+    mode: 2, action: 1, fullscreen: 9, overlay: 8,
   };
 
   const KEYS = {
@@ -25,17 +26,23 @@
     zoomOut: { key: "-", code: "Minus", keyCode: 189 },
   };
 
-  // Buttons that act as held, auto-repeating keys: Y walks forward, A back.
-  // Turning is left to the D-pad; X and B switch and use modes (see Modes).
-  const KEY_BUTTONS = {
-    [BTN.Y]: KEYS.up,
-    [BTN.A]: KEYS.down,
-    [BTN.LB]: KEYS.zoomOut,
-    [BTN.RB]: KEYS.zoomIn,
+  // Actions that act as held, auto-repeating keys: forward / back walk, zoom.
+  // Turning is left to the look actions; mode and action switch and use modes (see Modes).
+  const KEY_ACTIONS = {
+    forward: KEYS.up,
+    back: KEYS.down,
+    zoomOut: KEYS.zoomOut,
+    zoomIn: KEYS.zoomIn,
   };
 
   // User settings, pushed in from bridge.js (see settings.js for defaults).
-  const settings = { lookSpeedX: 720, lookSpeedY: 480, logLevel: "info", soundEnabled: true };
+  const settings = {
+    lookSpeedX: 720, lookSpeedY: 480, logLevel: "info", soundEnabled: true,
+    buttonMap: DEFAULT_BUTTON_MAP,
+  };
+  // Button index currently assigned to an action (null if unassigned).
+  const btn = (action) =>
+    settings.buttonMap && action in settings.buttonMap ? settings.buttonMap[action] : DEFAULT_BUTTON_MAP[action];
   window.addEventListener("message", (e) => {
     if (e.source !== window || e.data?.source !== "sv-gamepad-bridge") return;
     if (e.data.type === "settings") Object.assign(settings, e.data.settings);
@@ -121,12 +128,12 @@
   const wheelAction = (deltaY) => ({ down: () => sendWheel(deltaY), up: () => {} });
 
   const STREET_VIEW_ACTIONS = Object.fromEntries(
-    Object.entries(KEY_BUTTONS).map(([idx, k]) => [idx, keyAction(k)])
+    Object.entries(KEY_ACTIONS).map(([name, k]) => [name, keyAction(k)])
   );
-  // Y/A are handled as panning (see tick) on the map.
+  // Forward / back are handled as panning (see tick) on the map.
   const MAP_ACTIONS = {
-    [BTN.LB]: wheelAction(100),
-    [BTN.RB]: wheelAction(-100),
+    zoomOut: wheelAction(100),
+    zoomIn: wheelAction(-100),
   };
 
   const held = new Map(); // button index -> { action, nextAt }
@@ -756,26 +763,27 @@
       startWasPressed = selectWasPressed = modeWasPressed = actionWasPressed = false;
       walkWasPressed = { fwd: false, back: false };
     } else {
-      const pressed = (i) => pads.some((gp) => gp.buttons[i]?.pressed);
+      const pressedIdx = (i) => i != null && pads.some((gp) => gp.buttons[i]?.pressed);
+      const pressed = (action) => pressedIdx(btn(action));
 
       const streetView = isStreetView();
       logStreetView(streetView);
       if (!streetView) cancelJump();
 
       const actions = streetView ? STREET_VIEW_ACTIONS : MAP_ACTIONS;
-      for (const idx of Object.keys(KEY_BUTTONS)) {
-        updateHeldButton(Number(idx), actions[idx], pressed(Number(idx)), now);
+      for (const name of Object.keys(KEY_ACTIONS)) {
+        updateHeldButton(name, actions[name], pressed(name), now);
       }
 
-      // D-pad looks around (Street View) / pans (map); on the map Y/A pan too.
-      const dir = (dpad, face) => pressed(dpad) || (!streetView && pressed(face));
+      // Look actions look around (Street View) / pan (map); on the map forward / back pan too.
+      const dir = (look, walk) => pressed(look) || (!streetView && pressed(walk));
       updateLook(
-        (pressed(BTN.RIGHT) ? 1 : 0) - (pressed(BTN.LEFT) ? 1 : 0),
-        (dir(BTN.DOWN, BTN.A) ? 1 : 0) - (dir(BTN.UP, BTN.Y) ? 1 : 0),
+        (pressed("lookRight") ? 1 : 0) - (pressed("lookLeft") ? 1 : 0),
+        (dir("lookDown", "back") ? 1 : 0) - (dir("lookUp", "forward") ? 1 : 0),
         dt
       );
 
-      const walk = { fwd: pressed(BTN.Y), back: pressed(BTN.A) };
+      const walk = { fwd: pressed("forward"), back: pressed("back") };
       if (streetView) {
         const edge = walk.fwd && !walkWasPressed.fwd ? "fwd"
           : walk.back && !walkWasPressed.back ? "back" : null;
@@ -783,21 +791,21 @@
       }
       walkWasPressed = walk;
 
-      const start = pressed(BTN.START);
+      const start = pressed("fullscreen");
       if (start && !startWasPressed) {
         window.postMessage({ source: "sv-gamepad", type: "toggleFullscreen" }, "*");
       }
       startWasPressed = start;
 
-      const select = pressed(BTN.SELECT);
+      const select = pressed("overlay");
       if (select && !selectWasPressed) toggleOverlay();
       selectWasPressed = select;
 
-      const modeBtn = pressed(BTN.X);
+      const modeBtn = pressed("mode");
       if (modeBtn && !modeWasPressed) nextMode();
       modeWasPressed = modeBtn;
 
-      const actionBtn = pressed(BTN.B);
+      const actionBtn = pressed("action");
       if (actionBtn && !actionWasPressed) modeAction();
       actionWasPressed = actionBtn;
     }
