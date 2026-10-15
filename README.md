@@ -110,6 +110,10 @@ Click the extension's toolbar icon to open the settings panel:
 - **Ambient sound** on/off.
 - **Master volume** scales the **soundscape volume** (ambient recordings) and the **commentary
   volume** (spoken articles). Changes apply immediately.
+- **Configure gamepad keys…** opens a window that walks through every action ("Press a button
+  for …", like Recalbox's input configuration) so you can reassign buttons. Enter skips an
+  action, Esc cancels, and clicking an action remaps just that one. A button belongs to one
+  action only; assigning it elsewhere unassigns it. The table at the top shows the defaults.
 - **Console log level** – `Off`, `Info` (gamepad connect/disconnect, Select toggles; default) or `Debug` (every button change).
 
 Changes apply immediately to open Google Maps tabs.

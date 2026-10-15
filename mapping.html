@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Gamepad key mapping</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 14px system-ui, sans-serif; margin: 16px; }
+    h1 { font-size: 16px; margin: 0 0 8px; }
+    #prompt { margin: 12px 0; padding: 12px; border-radius: 6px; min-height: 40px;
+      background: color-mix(in srgb, currentColor 8%, transparent); }
+    #prompt b { font-size: 16px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    td { padding: 5px 6px; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
+    td.btn { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.current { background: color-mix(in srgb, orange 30%, transparent); }
+    button { font: inherit; padding: 4px 10px; margin-right: 6px; }
+    .hint { opacity: .7; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Gamepad key mapping</h1>
+  <div id="status" class="hint"></div>
+  <div id="prompt"></div>
+  <table id="list"></table>
+  <button id="start">Configure all</button>
+  <button id="skip" disabled>Skip (Enter)</button>
+  <button id="cancel" disabled>Cancel (Esc)</button>
+  <button id="defaults">Reset mapping</button>
+  <p class="hint">Click an action to remap just that one. Press any gamepad button once if no
+    gamepad is detected.</p>
+  <script src="settings.js"></script>
+  <script src="mapping.js"></script>
+</body>
+</html>
