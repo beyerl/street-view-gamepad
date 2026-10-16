@@ -15,6 +15,22 @@ Maps map — with a gamepad.
 
 Holding a button repeats its action.
 
+These actions have no button by default; assign them in the key mapping window (see *Settings*):
+
+| Action | What it does |
+|--------|--------------|
+| Step left / right | jump to the nearest panorama 90° to the left / right of the view (±40°), keeping the view direction (Street View only) |
+| One floor down | the opposite of B in floors mode; from the bottom floor it goes to the top one |
+| Enlarge / shrink minimap | clicks the button that enlarges Street View's minimap, or shrinks it again |
+| Zoom minimap in / out | scrolls the wheel over the minimap; repeats while held |
+| Browser back / forward | the browser's history |
+| Next / previous Wikipedia article | goes through the (up to ten) articles nearby, wrapping around; a playing commentary switches to the new article. Outside commentary mode it first switches to that mode |
+
+The minimap is found by its shape (a map canvas other than the scene, in the lower left) and its
+enlarge button by its label (*Expand*, *Vergrößern*, …), or else as the button in its upper right
+corner. Like the floor picker, this may stop working if Google changes its page; set the log level
+to *Debug* to see which buttons were found.
+
 In Street View, buttons are sent as arrow and `+`/`-` keys and the D-pad as a mouse drag. The map
 ignores synthetic key presses until a real key has been pressed on the page, so there the
 extension pans with a simulated mouse drag and zooms with mouse-wheel events instead.
@@ -34,7 +50,8 @@ mode is remembered for the tab.
   Set the log level to *Debug* to see what was found.
 - **Audio commentary** (speaker icon): the icon turns orange when there is a Wikipedia article
   about a place within 500 m, and the label shows its title. B plays it, pauses it and resumes
-  it. Nothing plays automatically. If the article has a [Spoken
+  it. Nothing plays automatically. When several articles are nearby, the label numbers them
+  (*Title (2/5)*) and the *next / previous article* actions switch between them. If the article has a [Spoken
   Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:WikiProject_Spoken_Wikipedia) recording,
   you hear that person reading it. Otherwise a built-in voice reads the article's
   introduction (see *Text-to-speech*). Articles come from English Wikipedia, or else from the

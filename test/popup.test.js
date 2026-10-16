@@ -62,7 +62,7 @@ test("the mapping button opens the mapping window and closes the popup", async (
   const { chrome, document, window } = await setup();
   document.el("mapping").click();
   assert.deepEqual(plain(chrome.windows.create.calls[0]), [
-    { url: "mapping.html", type: "popup", width: 520, height: 640 },
+    { url: "mapping.html", type: "popup", width: 520, height: 900 },
   ]);
   assert.equal(window.close.calls.length, 1);
 });

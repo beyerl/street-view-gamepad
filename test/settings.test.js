@@ -18,8 +18,8 @@ test("actions have unique ids and labels", () => {
   for (const a of actions) assert.ok(a.label);
 });
 
-test("default buttons are unique non-negative integers", () => {
-  const buttons = Object.values(defaults.buttonMap);
+test("default buttons are unique non-negative integers, or unassigned", () => {
+  const buttons = Object.values(defaults.buttonMap).filter((b) => b !== null);
   assert.equal(new Set(buttons).size, buttons.length);
   for (const b of buttons) assert.ok(Number.isInteger(b) && b >= 0);
 });

@@ -33,6 +33,7 @@ function setup({ href = MAP_URL, pads = [], canvas = true, session = {}, fetchIm
   };
   const state = { pads };
   const fetch = spy(fetchImpl || (async () => { throw new Error("unexpected fetch"); }));
+  const history = { back: spy(), forward: spy() };
   const console = { log: spy(), warn: spy(), error: spy() };
   const getComputedStyle = (el) => ({
     color: "black", backgroundColor: "rgba(0, 0, 0, 0)", fontWeight: "400",
@@ -40,13 +41,13 @@ function setup({ href = MAP_URL, pads = [], canvas = true, session = {}, fetchIm
   });
 
   loadScripts(["inject.js"], {
-    window, document, location, sessionStorage, fetch, console, getComputedStyle,
+    window, document, location, sessionStorage, fetch, console, getComputedStyle, history,
     navigator: { getGamepads: () => state.pads },
     ...eventClasses, ...clock.globals,
   });
 
   const env = {
-    clock, window, document, scene, location, store, state, fetch, console,
+    clock, window, document, scene, location, store, state, fetch, console, history,
     press: (...buttons) => { state.pads = [makeGamepad(buttons)]; },
     release: () => { state.pads = [makeGamepad([])]; },
     // Play a message from the bridge (content script) to the page.
@@ -870,4 +871,174 @@ test("going to the map without directions forgets the route", () => {
   env.location.href = MAP_URL;
   env.clock.tick(1000);
   assert.equal(env.store.has("svgp-route"), false);
+});
+
+// --- actions without a default button --------------------------------------------------
+
+// Assigns the given actions to buttons 6, 7, 10, 11, ... and returns their buttons.
+function assignExtra(env, ...actions) {
+  const free = [6, 7, 10, 11, 16];
+  const map = Object.fromEntries(actions.map((a, i) => [a, free[i]]));
+  env.fromBridge({ type: "settings", settings: { buttonMap: { ...B, ...map } } });
+  return actions.map((a) => map[a]);
+}
+
+function tap(env, button) {
+  env.press(button);
+  env.clock.tick(16);
+  env.release();
+  env.clock.tick(16);
+}
+
+test("actions without a default button do nothing until assigned", () => {
+  const env = setup({ href: PANO_URL });
+  for (const b of [6, 7, 10, 11, 16]) tap(env, b);
+  assert.equal(env.history.back.calls.length + env.history.forward.calls.length, 0);
+  assert.equal(env.boxText(), "");
+});
+
+test("browser back and forward", () => {
+  const env = setup();
+  const [back, fwd] = assignExtra(env, "historyBack", "historyForward");
+  env.press(back);
+  env.clock.tick(500); // held: still once
+  env.release();
+  env.clock.tick(16);
+  tap(env, fwd);
+  assert.equal(env.history.back.calls.length, 1);
+  assert.equal(env.history.forward.calls.length, 1);
+});
+
+test("strafing jumps to the panorama to the side and keeps the view direction", async () => {
+  // Looking north (0h), the panorama 20 m to the east is to the right.
+  const env = setup({ href: PANO_URL.replace("90h", "0h"), fetchImpl: eastPano });
+  const [left, right] = assignExtra(env, "strafeLeft", "strafeRight");
+  tap(env, left);
+  assert.equal(env.boxText(), "Searching for the next Street View point…");
+  await flush();
+  assert.equal(env.boxText(), "No Street View point found in this direction.");
+  assert.equal(env.location.assign.calls.length, 0);
+
+  tap(env, right);
+  await flush();
+  assert.deepEqual(env.location.assign.calls, [[
+    "https://www.google.com/maps/@52.5,13.400295,3a,75y,0.00h,90t/data=!3m4!1e1!3m2!1sPANO2!2e0",
+  ]]);
+});
+
+test("strafing does nothing on the map", () => {
+  const env = setup({ fetchImpl: eastPano });
+  const [right] = assignExtra(env, "strafeRight");
+  tap(env, right);
+  assert.equal(env.fetch.calls.length, 0);
+});
+
+test("one floor down, and from the bottom floor to the top", () => {
+  const env = setup();
+  const [down] = assignExtra(env, "levelDown");
+  const [f3, f2, f1] = floorPicker(env, ["3", "2", "1"], { checked: "2" });
+  tap(env, down);
+  assert.equal(f1.events.at(-1).type, "click");
+  assert.equal(f3.events.length + f2.events.length, 0);
+
+  const bottom = setup();
+  const [down2] = assignExtra(bottom, "levelDown");
+  const [top] = floorPicker(bottom, ["2", "1"], { checked: "1" });
+  tap(bottom, down2);
+  assert.equal(top.events.at(-1).type, "click");
+});
+
+function withMinimap(env, { buttons = [] } = {}) {
+  const map = new FakeElement("canvas");
+  map.rect = rect(10, 600, 200, 150);
+  env.document.when(/^canvas$/, [env.scene, map]);
+  env.document.when(/button/, buttons);
+  return map;
+}
+
+test("the minimap toggle clicks the minimap's enlarge button, found by its label", () => {
+  const env = setup({ href: PANO_URL });
+  const [toggle] = assignExtra(env, "minimapToggle");
+  const other = new FakeElement("button");
+  other.rect = rect(190, 600, 20, 20); // in the corner, but not the one
+  const expand = new FakeElement("button");
+  expand.rect = rect(20, 610, 20, 20);
+  expand.setAttribute("aria-label", "Karte vergrößern");
+  withMinimap(env, { buttons: [other, expand] });
+  tap(env, toggle);
+  assert.equal(expand.events.at(-1).type, "click");
+  assert.equal(other.events.length, 0);
+});
+
+test("without a labelled button the minimap toggle takes the one in its upper right corner", () => {
+  const env = setup({ href: PANO_URL });
+  const [toggle] = assignExtra(env, "minimapToggle");
+  const corner = new FakeElement("button");
+  corner.rect = rect(185, 602, 20, 20);
+  const middle = new FakeElement("button");
+  middle.rect = rect(100, 680, 20, 20);
+  const outside = new FakeElement("button");
+  outside.rect = rect(500, 100, 20, 20);
+  withMinimap(env, { buttons: [middle, outside, corner] });
+  tap(env, toggle);
+  assert.equal(corner.events.at(-1).type, "click");
+  assert.equal(middle.events.length + outside.events.length, 0);
+});
+
+test("the minimap toggle says so when there is no minimap", () => {
+  const env = setup({ href: PANO_URL });
+  const [toggle] = assignExtra(env, "minimapToggle");
+  env.document.when(/^canvas$/, [env.scene]);
+  tap(env, toggle);
+  assert.equal(env.boxText(), "No minimap here.");
+});
+
+test("minimap zoom scrolls the wheel on the minimap and repeats while held", () => {
+  const env = setup({ href: PANO_URL });
+  const [zin, zout] = assignExtra(env, "minimapZoomIn", "minimapZoomOut");
+  const map = withMinimap(env);
+  tap(env, zin);
+  tap(env, zout);
+  assert.deepEqual(env.events(map, "wheel").map((e) => [e.deltaY, e.clientX, e.clientY]), [[-100, 110, 675], [100, 110, 675]]);
+  env.press(zin);
+  env.clock.tick(500); // pressed, then repeats after 350 and 470 ms
+  assert.equal(env.events(map, "wheel").length, 5);
+  assert.equal(env.events(env.scene, "wheel").length, 0);
+});
+
+test("next / previous article switch to commentary mode first", () => {
+  const env = setup();
+  const [next] = assignExtra(env, "articleNext");
+  tap(env, next);
+  assert.equal(env.store.get("svgp-mode"), "commentary");
+  assert.equal(env.posted("commentaryNext").length, 0);
+  assert.equal(env.posted("commentaryAt").length, 1);
+});
+
+test("next / previous article ask the background for another of the articles nearby", () => {
+  const env = setup({ session: { "svgp-mode": "commentary" } });
+  const [next, prev] = assignExtra(env, "articleNext", "articlePrev");
+  env.fromBridge({ type: "commentary", state: { available: true, title: "A", status: "stopped", playingTitle: "", index: 0, count: 3 } });
+  tap(env, next);
+  tap(env, prev);
+  assert.deepEqual(env.posted("commentaryNext").map((m) => m.step), [1, -1]);
+});
+
+test("next article with one or no article nearby says so", () => {
+  const env = setup({ session: { "svgp-mode": "commentary" } });
+  const [next] = assignExtra(env, "articleNext");
+  env.fromBridge({ type: "commentary", state: { available: true, title: "A", status: "stopped", playingTitle: "", index: 0, count: 1 } });
+  tap(env, next);
+  assert.equal(env.boxText(), "No other article nearby.");
+  env.fromBridge({ type: "commentary", state: { available: false, title: "", status: "stopped", playingTitle: "", index: 0, count: 0 } });
+  env.clock.tick(1500);
+  tap(env, next);
+  assert.equal(env.boxText(), "No commentary for this place.");
+  assert.equal(env.posted("commentaryNext").length, 0);
+});
+
+test("the HUD numbers the article when there are several nearby", () => {
+  const env = setup({ pads: [makeGamepad([])], session: { "svgp-mode": "commentary" } });
+  env.fromBridge({ type: "commentary", state: { available: true, title: "Tor", status: "stopped", playingTitle: "", index: 1, count: 3 } });
+  assert.equal(env.chip("commentary").children[0].textContent, "Tor (2/3)");
 });

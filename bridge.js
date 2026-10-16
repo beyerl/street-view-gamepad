@@ -19,6 +19,8 @@ window.addEventListener("message", (e) => {
     chrome.runtime.sendMessage({ type: "commentaryAt", lat: e.data.lat, lng: e.data.lng });
   } else if (e.data.type === "commentaryToggle" || e.data.type === "commentaryPause") {
     chrome.runtime.sendMessage({ type: e.data.type });
+  } else if (e.data.type === "commentaryNext") {
+    chrome.runtime.sendMessage({ type: "commentaryNext", step: e.data.step });
   } else if (e.data.type === "getSettings") {
     pushSettings();
   }

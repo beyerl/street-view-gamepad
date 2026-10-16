@@ -325,7 +325,7 @@ test("commentary: picks the article that balances length and distance", async ()
   await ev("commentaryAt")(5, 52.5, 13.4);
   assert.deepEqual(plain(toTab()[0]), [5, {
     type: "commentary",
-    state: { available: true, title: "Title 2", status: "stopped", playingTitle: "" },
+    state: { available: true, title: "Title 2", status: "stopped", playingTitle: "", index: 0, count: 2 },
   }]);
 });
 
@@ -436,7 +436,7 @@ test("commentary toggle: starts the nearest article with text-to-speech", async 
   assert.equal(msg.text, "Intro text.");
   assert.equal(msg.lang, "en");
   assert.deepEqual(plain(lastState(env)), {
-    available: true, title: "Title 2", status: "playing", playingTitle: "Title 2",
+    available: true, title: "Title 2", status: "playing", playingTitle: "Title 2", index: 0, count: 2,
   });
 });
 
@@ -540,4 +540,41 @@ test("closing the tab that plays commentary stops it", async () => {
   await flush();
   assert.equal(env.ev("playback"), null);
   assert.equal(env.ev("noticeTab"), null);
+});
+
+test("commentary next: goes through the articles nearby, wrapping around", async () => {
+  const env = await withArticle();
+  await env.ev("commentaryNext")(5, 1);
+  assert.deepEqual(plain(lastState(env)), {
+    available: true, title: "Title 1", status: "stopped", playingTitle: "", index: 1, count: 2,
+  });
+  await env.ev("commentaryNext")(5, 1);
+  assert.equal(lastState(env).title, "Title 2");
+  await env.ev("commentaryNext")(5, -1);
+  assert.equal(lastState(env).title, "Title 1");
+  assert.equal(env.ev("nearby").get(5).title, "Title 1");
+});
+
+test("commentary next: while playing, the new article plays", async () => {
+  const env = await withArticle();
+  await env.ev("commentaryToggle")(5);
+  await env.ev("commentaryNext")(5, 1);
+  assert.equal(env.messages().at(-1).type, "commentarySpeak");
+  assert.equal(lastState(env).playingTitle, "Title 1");
+  assert.equal(lastState(env).status, "playing");
+});
+
+test("commentary next: with only one article nearby nothing changes", async () => {
+  const env = setup({ routes: article({ pages: [{ pageid: 1, length: 100 }] }) });
+  await env.ev("commentaryAt")(5, 52.5, 13.4);
+  await env.ev("commentaryNext")(5, 1);
+  assert.equal(lastState(env).title, "Title 1");
+  assert.equal(lastState(env).count, 1);
+});
+
+test("commentary next: routed from the tab", async () => {
+  const env = await withArticle();
+  env.route({ type: "commentaryNext", step: -1 });
+  await flush();
+  assert.equal(lastState(env).title, "Title 1");
 });

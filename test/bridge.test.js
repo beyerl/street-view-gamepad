@@ -30,6 +30,7 @@ test("forwards page messages to the background worker", async () => {
   window.message({ source: "sv-gamepad", type: "commentaryAt", lat: 3, lng: 4 });
   window.message({ source: "sv-gamepad", type: "commentaryToggle" });
   window.message({ source: "sv-gamepad", type: "commentaryPause" });
+  window.message({ source: "sv-gamepad", type: "commentaryNext", step: -1 });
   assert.deepEqual(sent(chrome), [
     { type: "toggleFullscreen" },
     { type: "ambient", lat: 1, lng: 2 },
@@ -37,6 +38,7 @@ test("forwards page messages to the background worker", async () => {
     { type: "commentaryAt", lat: 3, lng: 4 },
     { type: "commentaryToggle" },
     { type: "commentaryPause" },
+    { type: "commentaryNext", step: -1 },
   ]);
 });
 

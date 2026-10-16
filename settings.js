@@ -14,6 +14,10 @@ const SVG_DEFAULTS = {
     forward: 3, back: 0, zoomOut: 4, zoomIn: 5,
     lookUp: 12, lookDown: 13, lookLeft: 14, lookRight: 15,
     mode: 2, action: 1, fullscreen: 9, overlay: 8,
+    // No default buttons for these.
+    strafeLeft: null, strafeRight: null, levelDown: null,
+    minimapToggle: null, minimapZoomIn: null, minimapZoomOut: null,
+    historyBack: null, historyForward: null, articleNext: null, articlePrev: null,
   },
 };
 
@@ -31,4 +35,14 @@ const SVG_ACTIONS = [
   { id: "action", label: "Action of current mode" },
   { id: "fullscreen", label: "Toggle fullscreen" },
   { id: "overlay", label: "Hide/show search bar + title card" },
+  { id: "strafeLeft", label: "Step left (90° to the view)" },
+  { id: "strafeRight", label: "Step right (90° to the view)" },
+  { id: "levelDown", label: "One floor down" },
+  { id: "minimapToggle", label: "Enlarge / shrink minimap" },
+  { id: "minimapZoomIn", label: "Zoom minimap in" },
+  { id: "minimapZoomOut", label: "Zoom minimap out" },
+  { id: "historyBack", label: "Browser back" },
+  { id: "historyForward", label: "Browser forward" },
+  { id: "articleNext", label: "Next Wikipedia article nearby" },
+  { id: "articlePrev", label: "Previous Wikipedia article nearby" },
 ];
