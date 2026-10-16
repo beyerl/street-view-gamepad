@@ -15,6 +15,22 @@ Maps map — with a gamepad.
 
 Holding a button repeats its action.
 
+These actions have no button by default; assign them in the key mapping window (see *Settings*):
+
+| Action | What it does |
+|--------|--------------|
+| Step left / right | jump to the nearest panorama 90° to the left / right of the view (±40°), keeping the view direction (Street View only) |
+| One floor down | the opposite of B in floors mode; from the bottom floor it goes to the top one |
+| Enlarge / shrink minimap | clicks the button that enlarges Street View's minimap, or shrinks it again |
+| Zoom minimap in / out | scrolls the wheel over the minimap; repeats while held |
+| Browser back / forward | the browser's history |
+| Next / previous Wikipedia article | goes through the (up to ten) articles nearby, wrapping around; a playing commentary switches to the new article. Outside commentary mode it first switches to that mode |
+
+The minimap is found by its shape (a map canvas other than the scene, in the lower left) and its
+enlarge button by its label (*Expand*, *Vergrößern*, …), or else as the button in its upper right
+corner. Like the floor picker, this may stop working if Google changes its page; set the log level
+to *Debug* to see which buttons were found.
+
 In Street View, buttons are sent as arrow and `+`/`-` keys and the D-pad as a mouse drag. The map
 ignores synthetic key presses until a real key has been pressed on the page, so there the
 extension pans with a simulated mouse drag and zooms with mouse-wheel events instead.
@@ -34,7 +50,8 @@ mode is remembered for the tab.
   Set the log level to *Debug* to see what was found.
 - **Audio commentary** (speaker icon): the icon turns orange when there is a Wikipedia article
   about a place within 500 m, and the label shows its title. B plays it, pauses it and resumes
-  it. Nothing plays automatically. If the article has a [Spoken
+  it. Nothing plays automatically. When several articles are nearby, the label numbers them
+  (*Title (2/5)*) and the *next / previous article* actions switch between them. If the article has a [Spoken
   Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:WikiProject_Spoken_Wikipedia) recording,
   you hear that person reading it. Otherwise a built-in voice reads the article's
   introduction (see *Text-to-speech*). Articles come from English Wikipedia, or else from the
@@ -60,6 +77,12 @@ Holding Y walks normally and starts the search once you reach a dead end. A jump
 new panorama's URL, so the page reloads, which takes a moment. The search uses the same
 unofficial endpoint the Maps web app uses (`/maps/photometa/si/v1`), so it may break if Google
 changes it. Distances and angles are constants (`JUMP_*`) in `inject.js`.
+
+If directions are open, the route on the Street View minimap is carried over to the new
+panorama: the jump keeps the `/maps/dir/…` part of the URL and the route's blocks in its
+`data=` part. The route is also remembered for the tab (session storage) in case the page after
+the jump doesn't show it in its URL, and forgotten as soon as you close the directions or go
+back to the map without them.
 
 ## Ambient sound
 
@@ -114,6 +137,12 @@ Click the extension's toolbar icon to open the settings panel:
   for …", like Recalbox's input configuration) so you can reassign buttons. Enter skips an
   action, Esc cancels, and clicking an action remaps just that one. A button belongs to one
   action only; assigning it elsewhere unassigns it. The table at the top shows the defaults.
+  Sticks and other axes can be assigned too, e.g. a Joy-Con's stick: moving an axis more than
+  halfway from where it rested when configuring started assigns that direction (*Axis 1 −*),
+  and the action is active while the axis is past halfway. Axes that rest at −1, like analogue
+  triggers on some pads, count from there. A hat switch, which some systems report for a single
+  Joy-Con's stick as one axis resting outside −1…1, is assigned per position
+  (*Axis 9 = −1.00*).
 - **Console log level** – `Off`, `Info` (gamepad connect/disconnect, Select toggles; default) or `Debug` (every button change).
 
 Changes apply immediately to open Google Maps tabs.
@@ -129,3 +158,13 @@ Changes apply immediately to open Google Maps tabs.
 - Gamepad input doesn't count as a user gesture, so the page can't call `requestFullscreen()`.
   Instead, Start asks the background worker to put the browser window into fullscreen.
 - Add more Google domains to `matches` in `manifest.json` if you use a different one.
+
+## Tests
+
+`npm test` runs the unit tests with Node's built-in test runner (Node 22 or newer, no
+dependencies). The extension's scripts are loaded unchanged into a `vm` sandbox with small
+stand-ins for the browser and `chrome.*` APIs (`test/helpers/`).
+
+The *Tests* GitHub Actions workflow (`.github/workflows/tests.yml`) runs them on every pull
+request and push to `main`. To block merging while they fail, make the `test` check required
+in the branch protection rule for `main`.

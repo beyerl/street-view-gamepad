@@ -15,6 +15,9 @@
     forward: 3, back: 0, zoomOut: 4, zoomIn: 5,
     lookUp: 12, lookDown: 13, lookLeft: 14, lookRight: 15,
     mode: 2, action: 1, fullscreen: 9, overlay: 8,
+    strafeLeft: null, strafeRight: null, levelDown: null,
+    minimapToggle: null, minimapZoomIn: null, minimapZoomOut: null,
+    historyBack: null, historyForward: null, articleNext: null, articlePrev: null,
   };
 
   const KEYS = {
@@ -40,9 +43,22 @@
     lookSpeedX: 720, lookSpeedY: 480, logLevel: "info", soundEnabled: true,
     buttonMap: DEFAULT_BUTTON_MAP,
   };
-  // Button index currently assigned to an action (null if unassigned).
+  // Binding currently assigned to an action (null if unassigned): a button
+  // index, an axis direction ("a1+" / "a1-") or a hat switch position
+  // ("a9=-1.00"), see mapping.js.
   const btn = (action) =>
     settings.buttonMap && action in settings.buttonMap ? settings.buttonMap[action] : DEFAULT_BUTTON_MAP[action];
+  const AXIS_THRESHOLD = 0.5;
+  const HAT_TOLERANCE = 0.1;
+
+  function bindingActive(gp, binding) {
+    if (typeof binding === "number") return !!gp.buttons[binding]?.pressed;
+    const m = typeof binding === "string" && binding.match(/^a(\d+)(?:([+-])|=(-?[\d.]+))$/);
+    const v = m && gp.axes?.[+m[1]];
+    if (typeof v !== "number") return false;
+    if (m[2]) return (m[2] === "+" ? v : -v) > AXIS_THRESHOLD;
+    return Math.abs(v - +m[3]) < HAT_TOLERANCE;
+  }
   window.addEventListener("message", (e) => {
     if (e.source !== window || e.data?.source !== "sv-gamepad-bridge") return;
     if (e.data.type === "settings") Object.assign(settings, e.data.settings);
@@ -127,9 +143,12 @@
   });
   const wheelAction = (deltaY) => ({ down: () => sendWheel(deltaY), up: () => {} });
 
-  const STREET_VIEW_ACTIONS = Object.fromEntries(
-    Object.entries(KEY_ACTIONS).map(([name, k]) => [name, keyAction(k)])
-  );
+  const STREET_VIEW_ACTIONS = {
+    ...Object.fromEntries(Object.entries(KEY_ACTIONS).map(([name, k]) => [name, keyAction(k)])),
+    minimapZoomIn: { down: () => minimapWheel(-100), up: () => {} },
+    minimapZoomOut: { down: () => minimapWheel(100), up: () => {} },
+  };
+  const HELD_ACTIONS = Object.keys(STREET_VIEW_ACTIONS);
   // Forward / back are handled as panning (see tick) on the map.
   const MAP_ACTIONS = {
     zoomOut: wheelAction(100),
@@ -349,9 +368,80 @@
     const data = p.type === 2
       ? `!3m4!1e1!3m2!1s${p.id}!2e0`
       : `!3m5!1e1!3m3!1s${p.id}!2e10!3e11`;
-    location.assign(`${location.origin}/maps/@${p.lat},${p.lng},3a,${from.fov}y,` +
-      `${heading.toFixed(2)}h,${from.tilt}t/data=${data}${location.search}`);
+    const r = currentRoute();
+    try { sessionStorage.setItem(JUMPED_KEY, "1"); } catch {}
+    location.assign(`${location.origin}/maps/${r ? `${r.dir}/` : ""}@${p.lat},${p.lng},3a,${from.fov}y,` +
+      `${heading.toFixed(2)}h,${from.tilt}t/data=${data}${r?.data || ""}${location.search}`);
   }
+
+  // --- Route across jumps -----------------------------------------------------
+  // With directions open, the minimap in Street View shows the route. The URL
+  // holds it as a /maps/dir/<stops>/ path plus blocks in the data part next to
+  // the view's own !3m block. A jump loads a new URL, so it carries both over.
+  // The route is also remembered for the tab, in case the page after a jump
+  // doesn't show it in its URL, and forgotten once the user closes it.
+  const ROUTE_KEY = "svgp-route";
+  const JUMPED_KEY = "svgp-jumped"; // set just before a jump reloads the page
+
+  // Top-level blocks of a data part like "!3m6!1e1!3m4!1sX!2e0!7i1!8i1!4m2!4m1!1m0":
+  // "<field>m<n>" opens a block holding the next n tokens.
+  function dataBlocks(data) {
+    const tokens = data.split("!").filter(Boolean);
+    const blocks = [];
+    for (let i = 0; i < tokens.length;) {
+      const n = +(tokens[i].match(/^\d+m(\d+)$/)?.[1] || 0);
+      blocks.push(tokens.slice(i, i + 1 + n).map((t) => `!${t}`).join(""));
+      i += 1 + n;
+    }
+    return blocks;
+  }
+
+  function routeOf(href) {
+    const dir = href.match(/\/maps\/(dir\/.*?)\/@/);
+    if (!dir) return null;
+    const data = href.match(/\/data=([^/?#]*)/);
+    const blocks = data ? dataBlocks(data[1]).filter((b) => !/^!3[a-z]/.test(b)) : [];
+    return { dir: dir[1], data: blocks.join("") };
+  }
+
+  let savedRoute = null;
+  let routeSeen = false; // the URL showed a route since this page loaded
+  try {
+    // Only a jump carries the route over a reload; any other page load starts afresh.
+    if (sessionStorage.getItem(JUMPED_KEY)) savedRoute = JSON.parse(sessionStorage.getItem(ROUTE_KEY));
+    sessionStorage.removeItem(JUMPED_KEY);
+  } catch {}
+
+  function saveRoute(r) {
+    savedRoute = r;
+    try {
+      if (r) sessionStorage.setItem(ROUTE_KEY, JSON.stringify(r));
+      else sessionStorage.removeItem(ROUTE_KEY);
+    } catch {}
+  }
+
+  // Polled: keep the saved route in step with the URL. It goes when the route
+  // disappears from the URL (directions closed), or when the user is on the
+  // map without one.
+  function updateRoute() {
+    const r = routeOf(location.href);
+    if (r) {
+      routeSeen = true;
+      if (JSON.stringify(r) !== JSON.stringify(savedRoute)) saveRoute(r);
+    } else if (savedRoute && (routeSeen || !isStreetView())) {
+      log("debug", "route closed");
+      saveRoute(null);
+    }
+  }
+
+  function currentRoute() {
+    updateRoute();
+    return savedRoute;
+  }
+
+  saveRoute(savedRoute);
+  setInterval(updateRoute, 1000);
+  updateRoute();
 
   const angleDiff = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
 
@@ -431,14 +521,17 @@
     searching = false;
   }
 
-  // Go to the next point in the walking direction, reusing the lookup shown
-  // in the hint when it still matches the view.
-  async function startJumpSearch(back) {
+  // Go to the next point `turn`° off the view direction (0 ahead, 180 behind,
+  // ±90 to the side), reusing the lookup shown in the hint when it still
+  // matches the view. Stepping to the side keeps the view direction; walking
+  // looks the way it went.
+  async function startJumpSearch(turn) {
     const from = currentPano();
     if (!from) return;
-    const heading = (from.heading + (back ? 180 : 0)) % 360;
+    const heading = (from.heading + turn + 360) % 360;
+    const view = Math.abs(turn) === 90 ? from.heading : heading;
     let target;
-    if (!back && ahead?.pano === from.id && angleDiff(ahead.heading, from.heading) <= AHEAD_REUSE_ANGLE) {
+    if (!turn && ahead?.pano === from.id && angleDiff(ahead.heading, from.heading) <= AHEAD_REUSE_ANGLE) {
       target = ahead.target;
     } else {
       const seq = ++jumpSearch;
@@ -458,7 +551,12 @@
     }
     log("info", `jumping ${fmtDistance(target.m)} to`, target.id);
     hideBox();
-    goToPano(target, from, heading);
+    goToPano(target, from, view);
+  }
+
+  // Strafe buttons: step to the nearest panorama to the left / right.
+  function strafe(turn) {
+    if (isStreetView() && !searching) startJumpSearch(turn);
   }
 
   // Called every tick in Street View. `edge` is "fwd"/"back" on a walk press,
@@ -475,7 +573,7 @@
     if (jumpCheck && now >= jumpCheck.at) {
       const { pano, back } = jumpCheck;
       jumpCheck = null;
-      if (currentPano()?.id === pano) startJumpSearch(back);
+      if (currentPano()?.id === pano) startJumpSearch(back ? 180 : 0);
     }
   }
 
@@ -491,7 +589,11 @@
   } catch {}
 
   function nextMode() {
-    mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
+    setMode(MODES[(MODES.indexOf(mode) + 1) % MODES.length]);
+  }
+
+  function setMode(m) {
+    mode = m;
     try { sessionStorage.setItem(MODE_KEY, mode); } catch {}
     log("info", "mode:", mode);
     if (mode === "commentary") {
@@ -502,7 +604,7 @@
   }
 
   function modeAction() {
-    if (mode === "levels") nextLevel();
+    if (mode === "levels") switchLevel(-1);
     else if (mode === "commentary") toggleCommentary();
   }
 
@@ -569,15 +671,18 @@
     el.dispatchEvent(new MouseEvent("click", { ...common, buttons: 0 }));
   }
 
-  // One floor up; from the top floor (or an unknown one) start at the bottom.
-  function nextLevel() {
+  // One floor up (step -1, as the picker lists the top floor first) or down
+  // (+1). Past the top floor, or from an unknown one, going up starts at the
+  // bottom; going down past the bottom starts at the top.
+  function switchLevel(step) {
     const picker = findLevelPicker();
     if (!picker) {
       showBox("No floors to switch between here.", 1500);
       return;
     }
     const { items, current } = picker;
-    const target = current > 0 ? items[current - 1] : items[items.length - 1];
+    const n = items.length;
+    const target = current < 0 ? items[step < 0 ? n - 1 : 0] : items[(current + step + n) % n];
     log("debug", `levels [${items.map((it) => it.label)}], current ${items[current]?.label ?? "?"} -> ${target.label}`);
     lastLevel = target.label;
     clickElement(target.el);
@@ -589,7 +694,7 @@
   // and plays its Spoken Wikipedia recording, or reads its introduction aloud.
   // Nothing plays until B is pressed.
   const COMMENTARY_MOVE = 50; // m to move before looking up the nearest article again
-  let commentary = { available: false, title: "", status: "stopped", playingTitle: "" };
+  let commentary = { available: false, title: "", status: "stopped", playingTitle: "", index: 0, count: 0 };
   let commentaryPos = null; // where the last lookup was made
 
   window.addEventListener("message", (e) => {
@@ -621,11 +726,79 @@
     window.postMessage({ source: "sv-gamepad", type: "commentaryToggle" }, "*");
   }
 
+  // Next / previous of the articles nearby. Outside commentary mode this
+  // switches to it first, which looks up what is nearby.
+  function switchArticle(step) {
+    if (mode !== "commentary") {
+      setMode("commentary");
+    } else if (commentary.count > 1) {
+      window.postMessage({ source: "sv-gamepad", type: "commentaryNext", step }, "*");
+    } else {
+      showBox(commentary.available ? "No other article nearby." : "No commentary for this place.", 1500);
+    }
+  }
+
   setInterval(updateCommentaryLookup, 1000);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) window.postMessage({ source: "sv-gamepad", type: "commentaryPause" }, "*");
     else updateCommentaryLookup();
   });
+
+  // --- Minimap ----------------------------------------------------------------
+  // Street View shows a small map in the lower left with a button to enlarge
+  // it. Like the floor picker it is found by shape: a map canvas other than the
+  // scene, reaching into the lower left quarter of the screen.
+  const MINIMAP_SIZE_RE = /expand|collapse|enlarge|shrink|maximi|minimi|vergr|verklein|erweiter|einklapp|ausklapp|agrandir|réduire|ampliar|reducir/i;
+
+  function minimap() {
+    const scene = sceneCanvas();
+    for (const c of document.querySelectorAll("canvas")) {
+      if (c === scene) continue;
+      const r = c.getBoundingClientRect();
+      if (r.width && r.height && r.left < window.innerWidth / 2 && r.bottom > window.innerHeight / 2 && visible(c)) return c;
+    }
+    return null;
+  }
+
+  // The enlarge / shrink button: by its label, else the button on the minimap
+  // closest to its upper right corner, where Maps puts it.
+  function minimapSizeButton(map) {
+    const m = map.getBoundingClientRect();
+    const buttons = [...document.querySelectorAll('button, [role="button"]')].filter((b) => {
+      const r = b.getBoundingClientRect();
+      return r.width && r.height && r.left < m.right && r.right > m.left && r.top < m.bottom && r.bottom > m.top && visible(b);
+    });
+    const label = (b) => ["aria-label", "title", "data-tooltip"].map((a) => b.getAttribute(a) || "").join(" ");
+    log("debug", `minimap buttons: ${buttons.map((b) => JSON.stringify(label(b))).join(", ")}`);
+    const byLabel = buttons.find((b) => MINIMAP_SIZE_RE.test(label(b)));
+    if (byLabel) return byLabel;
+    const corner = (b) => {
+      const r = b.getBoundingClientRect();
+      return Math.hypot(m.right - r.right, r.top - m.top);
+    };
+    return buttons.sort((a, b) => corner(a) - corner(b))[0] || null;
+  }
+
+  function toggleMinimap() {
+    const map = minimap();
+    const button = map && minimapSizeButton(map);
+    if (!button) {
+      showBox("No minimap here.", 1500);
+      return;
+    }
+    clickElement(button);
+  }
+
+  function minimapWheel(deltaY) {
+    const map = minimap();
+    if (!map) return;
+    const r = map.getBoundingClientRect();
+    map.dispatchEvent(new WheelEvent("wheel", {
+      deltaY, deltaMode: 0,
+      clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+      bubbles: true, cancelable: true, composed: true, view: window,
+    }));
+  }
 
   // --- Mode display -----------------------------------------------------------
   const ICONS = {
@@ -673,7 +846,8 @@
     chip.commentary.querySelector("span").textContent =
       c.status === "playing" ? c.playingTitle
       : c.status === "paused" ? `⏸ ${c.playingTitle}`
-      : c.available ? c.title : "Nothing nearby";
+      : c.available ? (c.count > 1 ? `${c.title} (${c.index + 1}/${c.count})` : c.title)
+      : "Nothing nearby";
   }
 
   // Maps' own controls in the lower part of the screen (zoom, compass, floor
@@ -727,10 +901,22 @@
   setInterval(placeHud, 1000);
 
   // --- Main loop ------------------------------------------------------------
-  let startWasPressed = false;
-  let selectWasPressed = false;
-  let modeWasPressed = false;
-  let actionWasPressed = false;
+  // Actions that happen once per press.
+  const PRESS_ACTIONS = {
+    fullscreen: () => window.postMessage({ source: "sv-gamepad", type: "toggleFullscreen" }, "*"),
+    overlay: toggleOverlay,
+    mode: nextMode,
+    action: modeAction,
+    levelDown: () => switchLevel(1),
+    strafeLeft: () => strafe(-90),
+    strafeRight: () => strafe(90),
+    minimapToggle: toggleMinimap,
+    historyBack: () => history.back(),
+    historyForward: () => history.forward(),
+    articleNext: () => switchArticle(1),
+    articlePrev: () => switchArticle(-1),
+  };
+  const wasPressed = new Set(); // PRESS_ACTIONS whose button was down last tick
   let walkWasPressed = { fwd: false, back: false };
   let lastFrame = performance.now();
 
@@ -760,18 +946,20 @@
     if (!pads.length || document.hidden) {
       releaseAllKeys();
       releaseLook();
-      startWasPressed = selectWasPressed = modeWasPressed = actionWasPressed = false;
+      wasPressed.clear();
       walkWasPressed = { fwd: false, back: false };
     } else {
-      const pressedIdx = (i) => i != null && pads.some((gp) => gp.buttons[i]?.pressed);
-      const pressed = (action) => pressedIdx(btn(action));
+      const pressed = (action) => {
+        const b = btn(action);
+        return b != null && pads.some((gp) => bindingActive(gp, b));
+      };
 
       const streetView = isStreetView();
       logStreetView(streetView);
       if (!streetView) cancelJump();
 
       const actions = streetView ? STREET_VIEW_ACTIONS : MAP_ACTIONS;
-      for (const name of Object.keys(KEY_ACTIONS)) {
+      for (const name of HELD_ACTIONS) {
         updateHeldButton(name, actions[name], pressed(name), now);
       }
 
@@ -791,23 +979,12 @@
       }
       walkWasPressed = walk;
 
-      const start = pressed("fullscreen");
-      if (start && !startWasPressed) {
-        window.postMessage({ source: "sv-gamepad", type: "toggleFullscreen" }, "*");
+      for (const [name, run] of Object.entries(PRESS_ACTIONS)) {
+        const down = pressed(name);
+        if (down && !wasPressed.has(name)) run();
+        if (down) wasPressed.add(name);
+        else wasPressed.delete(name);
       }
-      startWasPressed = start;
-
-      const select = pressed("overlay");
-      if (select && !selectWasPressed) toggleOverlay();
-      selectWasPressed = select;
-
-      const modeBtn = pressed("mode");
-      if (modeBtn && !modeWasPressed) nextMode();
-      modeWasPressed = modeBtn;
-
-      const actionBtn = pressed("action");
-      if (actionBtn && !actionWasPressed) modeAction();
-      actionWasPressed = actionBtn;
     }
   }
 

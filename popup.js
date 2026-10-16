@@ -1,7 +1,7 @@
 const keys = Object.keys(SVG_DEFAULTS).filter((k) => k !== "buttonMap");
 
 document.getElementById("mapping").addEventListener("click", () => {
-  chrome.windows.create({ url: "mapping.html", type: "popup", width: 520, height: 640 });
+  chrome.windows.create({ url: "mapping.html", type: "popup", width: 520, height: 900 });
   window.close();
 });
 

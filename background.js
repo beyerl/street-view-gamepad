@@ -11,6 +11,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   else if (msg?.type === "commentaryAt") commentaryAt(sender.tab.id, msg.lat, msg.lng);
   else if (msg?.type === "commentaryToggle") commentaryToggle(sender.tab.id);
   else if (msg?.type === "commentaryPause") commentaryPause(sender.tab.id);
+  else if (msg?.type === "commentaryNext") commentaryNext(sender.tab.id, msg.step);
 });
 
 // --- Fullscreen ---------------------------------------------------------------
@@ -184,6 +185,7 @@ async function applyVolumes() {
 chrome.tabs.onRemoved.addListener((tabId) => {
   ambientStop(tabId);
   nearby.delete(tabId);
+  candidates.delete(tabId);
   lookupSeq.delete(tabId);
   if (noticeTab === tabId) noticeTab = null;
   if (playback?.tabId === tabId) commentaryStop();
@@ -216,18 +218,18 @@ async function wikiApi(host, params) {
 
 const articles = new Map(); // "lang:pageid" -> { id, lang, title, text, audio }
 
-// The nearest article isn't always the interesting one (next to the
-// Brandenburg Gate sits a club's office), so weigh article length against
-// distance among the closest few.
-async function nearestArticle(lat, lng) {
+// The articles nearby, most interesting first. The nearest article isn't
+// always the interesting one (next to the Brandenburg Gate sits a club's
+// office), so weigh article length against distance among the closest few.
+async function nearbyArticles(lat, lng) {
   for (const lang of WIKI_LANGS) {
     const { query } = await wikiApi(`${lang}.wikipedia.org`, {
       action: "query", generator: "geosearch", ggscoord: `${lat}|${lng}`, ggsradius: WIKI_RADIUS,
       ggslimit: 10, prop: "info|coordinates", codistancefrompoint: `${lat}|${lng}`,
     });
     const score = (p) => p.length / ((p.coordinates?.[0]?.dist ?? WIKI_RADIUS) + 100);
-    const best = (query?.pages || []).sort((a, b) => score(b) - score(a))[0];
-    if (best) return articleDetails(lang, best.pageid);
+    const pages = (query?.pages || []).sort((a, b) => score(b) - score(a));
+    if (pages.length) return { lang, pageids: pages.map((p) => p.pageid), index: 0 };
   }
   return null;
 }
@@ -266,6 +268,7 @@ async function spokenRecording(images) {
 // Kept in memory like the ambient state: if the worker restarts, a paused
 // commentary is forgotten and B starts the nearest article from the beginning.
 const nearby = new Map(); // tabId -> article or null
+const candidates = new Map(); // tabId -> { lang, pageids, index } of nearby[tabId], or null
 const lookupSeq = new Map(); // tabId -> number, to drop stale lookups
 let playback = null; // { tabId, article, status: "playing" | "paused" }
 let noticeTab = null; // tab that sees download progress and errors
@@ -273,30 +276,62 @@ let noticeTab = null; // tab that sees download progress and errors
 async function commentaryAt(tabId, lat, lng) {
   const seq = (lookupSeq.get(tabId) || 0) + 1;
   lookupSeq.set(tabId, seq);
-  let article = null;
+  let found = null, article = null;
   try {
-    article = await nearestArticle(lat, lng);
+    found = await nearbyArticles(lat, lng);
+    if (found) article = await articleDetails(found.lang, found.pageids[0]);
   } catch (err) {
     console.warn("commentary:", err);
   }
   if (lookupSeq.get(tabId) !== seq) return;
+  candidates.set(tabId, article && found);
   nearby.set(tabId, article);
   pushCommentary(tabId);
-  // Get the voice ready (downloaded on first use) before B is pressed.
+  preloadVoice(tabId, article);
+}
+
+// Get the voice ready (downloaded on first use) before B is pressed.
+function preloadVoice(tabId, article) {
   if (article && !article.audio) {
     noticeTab = tabId;
     toOffscreen({ type: "commentaryPreload", lang: article.lang }).catch(() => {});
   }
 }
 
+// Next (step 1) or previous (-1) of the articles nearby, wrapping around. If
+// the commentary is playing, the new article plays instead.
+async function commentaryNext(tabId, step) {
+  const c = candidates.get(tabId);
+  if (!c || c.pageids.length < 2) return pushCommentary(tabId);
+  const seq = (lookupSeq.get(tabId) || 0) + 1;
+  lookupSeq.set(tabId, seq);
+  const n = c.pageids.length;
+  const index = (((c.index + step) % n) + n) % n;
+  let article;
+  try {
+    article = await articleDetails(c.lang, c.pageids[index]);
+  } catch (err) {
+    console.warn("commentary:", err);
+    return;
+  }
+  if (lookupSeq.get(tabId) !== seq) return;
+  c.index = index;
+  nearby.set(tabId, article);
+  if (playback?.tabId === tabId && playback.status === "playing") await commentaryStart(tabId, article);
+  pushCommentary(tabId);
+  preloadVoice(tabId, article);
+}
+
 function pushCommentary(tabId) {
   const a = nearby.get(tabId);
+  const c = candidates.get(tabId);
   const p = playback?.tabId === tabId ? playback : null;
   chrome.tabs.sendMessage(tabId, {
     type: "commentary",
     state: {
       available: !!a, title: a?.title || "",
       status: p?.status || "stopped", playingTitle: p?.article.title || "",
+      index: c?.index || 0, count: c?.pageids.length || 0,
     },
   }).catch(() => {}); // tab gone or reloading
 }
