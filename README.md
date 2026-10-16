@@ -121,16 +121,22 @@ no voices at all.
 
 ## Install
 
-The extension is built from `src/` into `dist/` (not committed), so build it first. This needs
-Node 22 or newer.
+**Without building:** download
+[street-view-gamepad.zip](https://github.com/beyerl/street-view-gamepad/raw/main/release/street-view-gamepad.zip)
+(`release/street-view-gamepad.zip` in this repository, the built extension).
 
-1. `npm ci && npm run build`
+1. Unzip it into a folder of its own.
 2. Open `chrome://extensions`, enable **Developer mode**.
-3. **Load unpacked** → select this folder.
+3. **Load unpacked** → select the unzipped folder.
 4. Open Street View on Google Maps, press any gamepad button once so Chrome exposes the pad.
 
-After changing the code, run `npm run build` again (or keep `npm run watch` running) and click
-the reload button of the extension in `chrome://extensions`.
+To update, replace the folder's contents with a newer zip and click the extension's reload
+button in `chrome://extensions`.
+
+**From the source:** the extension is built from `src/` into `dist/` (not committed), which
+needs Node 22 or newer. Run `npm ci && npm run build`, then load this folder itself with **Load
+unpacked**. After changing the code, run `npm run build` again (or keep `npm run watch`
+running) and reload the extension.
 
 ## Settings
 
@@ -178,7 +184,8 @@ Changes apply immediately to open Google Maps tabs.
 | `npm run check`                   | everything CI runs                                     |
 
 The _Tests_ GitHub Actions workflow (`.github/workflows/tests.yml`) runs `lint`, `format:check`,
-`typecheck` and `test` on every pull request and push to `main`. Its `test` check is required by
+`typecheck`, `test` and `package:check` (the committed zip matches the code; run
+`npm run package` and commit the zip when it fails) on every pull request and push to `main`. Its `test` check is required by
 the branch protection rule for `main`, so a pull request can't be merged while it fails.
 
 ## Architecture
