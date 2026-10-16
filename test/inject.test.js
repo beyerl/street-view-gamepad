@@ -1042,3 +1042,44 @@ test("the HUD numbers the article when there are several nearby", () => {
   env.fromBridge({ type: "commentary", state: { available: true, title: "Tor", status: "stopped", playingTitle: "", index: 1, count: 3 } });
   assert.equal(env.chip("commentary").children[0].textContent, "Tor (2/3)");
 });
+
+// --- axis bindings ------------------------------------------------------------------------
+
+const axisPad = (axes) => [{ ...makeGamepad([]), axes }];
+
+test("an axis direction binding acts like a button past half deflection", () => {
+  const env = setup({ href: SV_URL });
+  env.fromBridge({ type: "settings", settings: { buttonMap: { ...B, forward: "a1-", back: "a1+" } } });
+  env.state.pads = axisPad([0, -0.4]);
+  env.clock.tick(16);
+  assert.equal(env.events(env.scene, "keydown").length, 0);
+  env.state.pads = axisPad([0, -0.9]);
+  env.clock.tick(16);
+  env.state.pads = axisPad([0, 0.9]);
+  env.clock.tick(16);
+  assert.deepEqual(env.events(env.scene, "keydown").map((e) => e.key), ["ArrowUp", "ArrowDown"]);
+  assert.deepEqual(env.events(env.scene, "keyup").map((e) => e.key), ["ArrowUp"]);
+});
+
+test("a hat switch binding is pressed only at its position", () => {
+  const env = setup({ href: SV_URL });
+  env.fromBridge({ type: "settings", settings: { buttonMap: { ...B, forward: "a9=-1.00" } } });
+  for (const v of [1.2857, -0.7143, 0.1429]) {
+    env.state.pads = axisPad(Object.assign(Array(10).fill(0), { 9: v }));
+    env.clock.tick(16);
+  }
+  assert.equal(env.events(env.scene, "keydown").length, 0);
+  env.state.pads = axisPad(Object.assign(Array(10).fill(0), { 9: -1 }));
+  env.clock.tick(16);
+  assert.equal(env.events(env.scene, "keydown")[0].key, "ArrowUp");
+});
+
+test("malformed bindings and missing axes are never pressed", () => {
+  const env = setup({ href: SV_URL });
+  env.fromBridge({ type: "settings", settings: { buttonMap: { ...B, forward: "x1", back: "a5+" } } });
+  env.state.pads = [makeGamepad([])]; // no axes at all
+  env.clock.tick(16);
+  env.state.pads = axisPad([1, 1]);
+  env.clock.tick(16);
+  assert.equal(env.events(env.scene, "keydown").length, 0);
+});

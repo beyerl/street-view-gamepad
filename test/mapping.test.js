@@ -54,7 +54,7 @@ test("reports whether a gamepad is connected", async () => {
 test("Configure all walks through the actions and assigns pressed buttons", async () => {
   const { document, state, poll, rows, stored, ev } = await setup();
   document.el("start").click();
-  assert.equal(document.el("prompt").textContent, "Press a button for Walk forward / pan north");
+  assert.equal(document.el("prompt").textContent, "Press a button or move a stick for Walk forward / pan north");
   assert.equal(rows()[0].className, "current");
   assert.equal(document.el("start").disabled, true);
 
@@ -63,7 +63,7 @@ test("Configure all walks through the actions and assigns pressed buttons", asyn
   poll();
   await flush();
   assert.equal(stored().forward, 10);
-  assert.equal(document.el("prompt").textContent, "Press a button for Walk backward / pan south");
+  assert.equal(document.el("prompt").textContent, "Press a button or move a stick for Walk backward / pan south");
   assert.equal(rows()[0].children[1].textContent, "Button 10");
 
   // The same press is not taken twice: wait for the release first.
@@ -92,7 +92,7 @@ test("assigning a button takes it away from the action that had it", async () =>
 test("clicking a row configures only that action", async () => {
   const { document, state, poll, rows, stored } = await setup();
   rows()[2].click(); // lookUp
-  assert.equal(document.el("prompt").textContent, "Press a button for Look up");
+  assert.equal(document.el("prompt").textContent, "Press a button or move a stick for Look up");
   poll();
   state.pads = press(6);
   poll();
@@ -105,9 +105,9 @@ test("skip, Enter, cancel and Escape", async () => {
   const { document, rows } = await setup();
   document.el("start").click();
   document.el("skip").click();
-  assert.equal(document.el("prompt").textContent, "Press a button for Walk backward / pan south");
+  assert.equal(document.el("prompt").textContent, "Press a button or move a stick for Walk backward / pan south");
   document.dispatchEvent({ type: "keydown", key: "Enter" });
-  assert.equal(document.el("prompt").textContent, "Press a button for Look up");
+  assert.equal(document.el("prompt").textContent, "Press a button or move a stick for Look up");
   document.dispatchEvent({ type: "keydown", key: "Escape" });
   assert.equal(document.el("prompt").textContent, "Idle.");
   assert.equal(rows().every((r) => r.className === ""), true);
@@ -149,4 +149,65 @@ test("Reset mapping stores the default map", async () => {
   assert.deepEqual(stored(), plain(ev("SVG_DEFAULTS.buttonMap")));
   assert.equal(chrome.storage.sync.set.calls.length, 1);
   assert.equal(rows()[0].children[1].textContent, "Button 3");
+});
+
+// --- axes (Joy-Con sticks, hat switches) --------------------------------------------------
+
+const pad = (axes, buttons = []) => [{ ...makeGamepad(buttons), axes }];
+
+test("a stick moved from rest is assigned as an axis direction", async () => {
+  const { document, state, poll, rows, stored } = await setup({ pads: pad([0, 0.02]) });
+  document.el("start").click();
+  poll(); // at rest: arms the input
+  state.pads = pad([0, -0.9]);
+  poll();
+  await flush();
+  assert.equal(stored().forward, "a1-");
+  assert.equal(rows()[0].children[1].textContent, "Axis 1 -");
+
+  state.pads = pad([0, -0.4]); // still not back within the release threshold
+  poll();
+  state.pads = pad([0.8, 0]);
+  poll();
+  assert.equal(stored().back, 0);
+  state.pads = pad([0, 0]);
+  poll();
+  state.pads = pad([0.8, 0]);
+  poll();
+  await flush();
+  assert.equal(stored().back, "a0+");
+});
+
+test("an axis resting at -1 (a trigger) counts from its rest position", async () => {
+  const { chrome, document, state, poll, stored } = await setup({ pads: pad([0, 0, -1]) });
+  document.el("start").click();
+  poll();
+  poll();
+  assert.equal(chrome.storage.sync.data.buttonMap, undefined); // nothing assigned while at rest
+  state.pads = pad([0, 0, 1]);
+  poll();
+  await flush();
+  assert.equal(stored().forward, "a2+");
+});
+
+test("a hat switch is assigned by its position", async () => {
+  const { document, state, poll, rows, stored } = await setup({ pads: pad([0, 0, 1.2857]) });
+  document.el("start").click();
+  poll();
+  state.pads = pad([0, 0, 0.1429]); // down
+  poll();
+  await flush();
+  assert.equal(stored().forward, "a2=0.14");
+  assert.equal(rows()[0].children[1].textContent, "Axis 2 = 0.14");
+});
+
+test("an axis taken by another action is unassigned from it", async () => {
+  const { document, state, poll, stored } = await setup({ sync: { buttonMap: { back: "a1+" } }, pads: pad([0, 0]) });
+  document.el("start").click();
+  poll();
+  state.pads = pad([0, 1]);
+  poll();
+  await flush();
+  assert.equal(stored().forward, "a1+");
+  assert.equal(stored().back, null);
 });

@@ -137,6 +137,12 @@ Click the extension's toolbar icon to open the settings panel:
   for …", like Recalbox's input configuration) so you can reassign buttons. Enter skips an
   action, Esc cancels, and clicking an action remaps just that one. A button belongs to one
   action only; assigning it elsewhere unassigns it. The table at the top shows the defaults.
+  Sticks and other axes can be assigned too, e.g. a Joy-Con's stick: moving an axis more than
+  halfway from where it rested when configuring started assigns that direction (*Axis 1 −*),
+  and the action is active while the axis is past halfway. Axes that rest at −1, like analogue
+  triggers on some pads, count from there. A hat switch, which some systems report for a single
+  Joy-Con's stick as one axis resting outside −1…1, is assigned per position
+  (*Axis 9 = −1.00*).
 - **Console log level** – `Off`, `Info` (gamepad connect/disconnect, Select toggles; default) or `Debug` (every button change).
 
 Changes apply immediately to open Google Maps tabs.

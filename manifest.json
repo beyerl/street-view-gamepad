@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Street View Gamepad",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Control Google Maps and Street View with a gamepad and hear ambient field recordings from nearby (radio aporee ::: maps) and spoken Wikipedia articles about the place.",
   "permissions": [
     "storage",

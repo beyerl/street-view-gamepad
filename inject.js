@@ -43,9 +43,22 @@
     lookSpeedX: 720, lookSpeedY: 480, logLevel: "info", soundEnabled: true,
     buttonMap: DEFAULT_BUTTON_MAP,
   };
-  // Button index currently assigned to an action (null if unassigned).
+  // Binding currently assigned to an action (null if unassigned): a button
+  // index, an axis direction ("a1+" / "a1-") or a hat switch position
+  // ("a9=-1.00"), see mapping.js.
   const btn = (action) =>
     settings.buttonMap && action in settings.buttonMap ? settings.buttonMap[action] : DEFAULT_BUTTON_MAP[action];
+  const AXIS_THRESHOLD = 0.5;
+  const HAT_TOLERANCE = 0.1;
+
+  function bindingActive(gp, binding) {
+    if (typeof binding === "number") return !!gp.buttons[binding]?.pressed;
+    const m = typeof binding === "string" && binding.match(/^a(\d+)(?:([+-])|=(-?[\d.]+))$/);
+    const v = m && gp.axes?.[+m[1]];
+    if (typeof v !== "number") return false;
+    if (m[2]) return (m[2] === "+" ? v : -v) > AXIS_THRESHOLD;
+    return Math.abs(v - +m[3]) < HAT_TOLERANCE;
+  }
   window.addEventListener("message", (e) => {
     if (e.source !== window || e.data?.source !== "sv-gamepad-bridge") return;
     if (e.data.type === "settings") Object.assign(settings, e.data.settings);
@@ -936,8 +949,10 @@
       wasPressed.clear();
       walkWasPressed = { fwd: false, back: false };
     } else {
-      const pressedIdx = (i) => i != null && pads.some((gp) => gp.buttons[i]?.pressed);
-      const pressed = (action) => pressedIdx(btn(action));
+      const pressed = (action) => {
+        const b = btn(action);
+        return b != null && pads.some((gp) => bindingActive(gp, b));
+      };
 
       const streetView = isStreetView();
       logStreetView(streetView);
