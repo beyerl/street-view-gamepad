@@ -129,3 +129,9 @@ Changes apply immediately to open Google Maps tabs.
 - Gamepad input doesn't count as a user gesture, so the page can't call `requestFullscreen()`.
   Instead, Start asks the background worker to put the browser window into fullscreen.
 - Add more Google domains to `matches` in `manifest.json` if you use a different one.
+
+## Tests
+
+`npm test` runs the unit tests with Node's built-in test runner (Node 22 or newer, no
+dependencies). The extension's scripts are loaded unchanged into a `vm` sandbox with small
+stand-ins for the browser and `chrome.*` APIs (`test/helpers/`).
