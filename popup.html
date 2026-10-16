@@ -1,64 +1,118 @@
 <!doctype html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    :root { color-scheme: light dark; }
-    body { font: 13px system-ui, sans-serif; width: 260px; margin: 12px; }
-    h1 { font-size: 14px; margin: 0 0 12px; }
-    label { display: block; margin-bottom: 14px; }
-    .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-    output { font-variant-numeric: tabular-nums; opacity: .8; }
-    input[type=range], select { width: 100%; margin: 0; }
-    button { font: inherit; padding: 4px 10px; }
-    label.check { display: flex; gap: 6px; align-items: center; }
-    #nowPlaying { margin: -4px 0 14px; padding: 8px; border-radius: 6px; background: color-mix(in srgb, currentColor 8%, transparent); }
-    .np-head { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; opacity: .6; margin-bottom: 2px; }
-    #np-title { font-weight: 600; color: inherit; }
-    #np-meta { font-size: 12px; opacity: .75; margin-top: 2px; }
-  </style>
-</head>
-<body>
-  <h1>Street View Gamepad</h1>
-  <label>
-    <div class="row"><span>Horizontal look speed (D-pad ←→)</span><output id="lookSpeedX-out"></output></div>
-    <input type="range" id="lookSpeedX" min="100" max="2400" step="20">
-  </label>
-  <label>
-    <div class="row"><span>Vertical look speed (D-pad ↑↓)</span><output id="lookSpeedY-out"></output></div>
-    <input type="range" id="lookSpeedY" min="100" max="2400" step="20">
-  </label>
-  <label class="check">
-    <input type="checkbox" id="soundEnabled"> Ambient sound from nearby recordings
-  </label>
-  <label>
-    <div class="row"><span>Master volume</span><output id="masterVolume-out"></output></div>
-    <input type="range" id="masterVolume" min="0" max="100" step="1">
-  </label>
-  <label>
-    <div class="row"><span>Soundscape volume</span><output id="volume-out"></output></div>
-    <input type="range" id="volume" min="0" max="100" step="1">
-  </label>
-  <label>
-    <div class="row"><span>Commentary volume</span><output id="commentaryVolume-out"></output></div>
-    <input type="range" id="commentaryVolume" min="0" max="100" step="1">
-  </label>
-  <div id="nowPlaying" hidden>
-    <div class="np-head">Now playing</div>
-    <a id="np-title" target="_blank"></a>
-    <div id="np-meta"></div>
-  </div>
-  <label>
-    <div class="row"><span>Console log level</span></div>
-    <select id="logLevel">
-      <option value="off">Off</option>
-      <option value="info">Info (connect/disconnect)</option>
-      <option value="debug">Debug (every button change)</option>
-    </select>
-  </label>
-  <button id="mapping">Configure gamepad keys…</button>
-  <button id="reset">Reset to defaults</button>
-  <script src="settings.js"></script>
-  <script src="popup.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        font:
+          13px system-ui,
+          sans-serif;
+        width: 260px;
+        margin: 12px;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 12px;
+      }
+      svgp-setting {
+        display: block;
+      }
+      label {
+        display: block;
+        margin-bottom: 14px;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 4px;
+      }
+      output {
+        font-variant-numeric: tabular-nums;
+        opacity: 0.8;
+      }
+      input[type="range"],
+      select {
+        width: 100%;
+        margin: 0;
+      }
+      button {
+        font: inherit;
+        padding: 4px 10px;
+      }
+      label.check {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      #nowPlaying {
+        margin: -4px 0 14px;
+        padding: 8px;
+        border-radius: 6px;
+        background: color-mix(in srgb, currentColor 8%, transparent);
+      }
+      .np-head {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.6;
+        margin-bottom: 2px;
+      }
+      #np-title {
+        font-weight: 600;
+        color: inherit;
+      }
+      #np-meta {
+        font-size: 12px;
+        opacity: 0.75;
+        margin-top: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Street View Gamepad</h1>
+    <svgp-setting
+      key="lookSpeedX"
+      label="Horizontal look speed (D-pad ←→)"
+      type="range"
+      min="100"
+      max="2400"
+      step="20"
+    ></svgp-setting>
+    <svgp-setting
+      key="lookSpeedY"
+      label="Vertical look speed (D-pad ↑↓)"
+      type="range"
+      min="100"
+      max="2400"
+      step="20"
+    ></svgp-setting>
+    <svgp-setting key="soundEnabled" label="Ambient sound from nearby recordings" type="checkbox"></svgp-setting>
+    <svgp-setting key="masterVolume" label="Master volume" type="range" min="0" max="100" step="1"></svgp-setting>
+    <svgp-setting key="volume" label="Soundscape volume" type="range" min="0" max="100" step="1"></svgp-setting>
+    <svgp-setting
+      key="commentaryVolume"
+      label="Commentary volume"
+      type="range"
+      min="0"
+      max="100"
+      step="1"
+    ></svgp-setting>
+    <div id="nowPlaying" hidden>
+      <div class="np-head">Now playing</div>
+      <a id="np-title" target="_blank"></a>
+      <div id="np-meta"></div>
+    </div>
+    <svgp-setting
+      key="logLevel"
+      label="Console log level"
+      type="select"
+      options="off:Off|info:Info (connect/disconnect)|debug:Debug (every button change)"
+    ></svgp-setting>
+    <button id="mapping">Configure gamepad keys…</button>
+    <button id="reset">Reset to defaults</button>
+    <script src="dist/popup.js"></script>
+  </body>
 </html>

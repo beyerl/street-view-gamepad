@@ -3,6 +3,30 @@
   "private": true,
   "description": "Control Google Maps and Street View with a gamepad",
   "scripts": {
-    "test": "node --test \"test/*.test.js\""
+    "build": "node scripts/build.js",
+    "watch": "node scripts/build.js --watch",
+    "typecheck": "tsc -p jsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run build && node --test \"test/**/*.test.js\"",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run package:check",
+    "test:coverage": "npm run build && node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/**/*.test.js\"",
+    "package": "npm run build && node scripts/package.js",
+    "package:check": "npm run build && node scripts/package.js --check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/chrome": "^0.3.5",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "happy-dom": "^21.0.3",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
   }
 }
