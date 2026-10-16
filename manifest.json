@@ -1,15 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Street View Gamepad",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Control Google Maps and Street View with a gamepad and hear ambient field recordings from nearby (radio aporee ::: maps) and spoken Wikipedia articles about the place.",
-  "permissions": [
-    "storage",
-    "offscreen",
-    "declarativeNetRequest"
-  ],
+  "permissions": ["storage", "offscreen", "declarativeNetRequest"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "dist/background.js"
   },
   "content_scripts": [
     {
@@ -22,9 +18,7 @@
         "*://maps.google.com/*",
         "*://maps.google.de/*"
       ],
-      "js": [
-        "inject.js"
-      ],
+      "js": ["dist/page.js"],
       "world": "MAIN",
       "run_at": "document_idle"
     },
@@ -38,10 +32,7 @@
         "*://maps.google.com/*",
         "*://maps.google.de/*"
       ],
-      "js": [
-        "settings.js",
-        "bridge.js"
-      ],
+      "js": ["dist/bridge.js"],
       "run_at": "document_idle"
     }
   ],
