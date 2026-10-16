@@ -29,6 +29,7 @@ function setup({ href = MAP_URL, pads = [], canvas = true, session = {}, fetchIm
   const sessionStorage = {
     getItem: (k) => (store.has(k) ? store.get(k) : null),
     setItem: (k, v) => store.set(k, v),
+    removeItem: (k) => store.delete(k),
   };
   const state = { pads };
   const fetch = spy(fetchImpl || (async () => { throw new Error("unexpected fetch"); }));
@@ -816,4 +817,57 @@ test("no jump logic runs when the URL has no panorama id", () => {
   env.clock.tick(2000);
   assert.equal(env.fetch.calls.length, 0);
   assert.equal(env.location.assign.calls.length, 0);
+});
+
+// --- route across jumps -----------------------------------------------------------------
+
+const ROUTE_DIR = "dir/Berlin+Hbf/Brandenburger+Tor";
+const ROUTE_DATA = "!4m9!4m8!1m3!2m2!1d13.36!2d52.52!1m3!2m2!1d13.37!2d52.51";
+const ROUTE_PANO_URL = `https://www.google.com/maps/${ROUTE_DIR}/@52.5,13.4,3a,75y,90h,90t` +
+  `/data=!3m6!1e1!3m4!1sPANO1!2e0!7i16384!8i8192${ROUTE_DATA}`;
+const JUMP_TARGET = "@52.5,13.400295,3a,75y,90.00h,90t/data=!3m4!1e1!3m2!1sPANO2!2e0";
+
+async function jumpFrom(href, session) {
+  const env = await withHint({ href, session });
+  env.press(B.forward);
+  env.clock.tick(1300);
+  return env;
+}
+
+test("a jump keeps the route shown on the minimap and remembers it for the tab", async () => {
+  const env = await jumpFrom(ROUTE_PANO_URL);
+  assert.equal(env.location.assign.calls[0][0], `https://www.google.com/maps/${ROUTE_DIR}/${JUMP_TARGET}${ROUTE_DATA}`);
+  assert.deepEqual(JSON.parse(env.store.get("svgp-route")), { dir: ROUTE_DIR, data: ROUTE_DATA });
+  assert.equal(env.store.get("svgp-jumped"), "1");
+});
+
+test("after a jump the remembered route is used even if the URL doesn't show it", async () => {
+  const session = { "svgp-jumped": "1", "svgp-route": JSON.stringify({ dir: ROUTE_DIR, data: ROUTE_DATA }) };
+  const env = await jumpFrom(PANO_URL, session);
+  assert.equal(env.location.assign.calls[0][0], `https://www.google.com/maps/${ROUTE_DIR}/${JUMP_TARGET}${ROUTE_DATA}`);
+});
+
+test("a remembered route is dropped on a page load that wasn't a jump", async () => {
+  const env = await jumpFrom(PANO_URL, { "svgp-route": JSON.stringify({ dir: ROUTE_DIR, data: ROUTE_DATA }) });
+  assert.equal(env.location.assign.calls[0][0], `https://www.google.com/maps/${JUMP_TARGET}`);
+  assert.equal(env.store.has("svgp-route"), false);
+});
+
+test("closing the directions forgets the route", async () => {
+  const env = setup({ href: ROUTE_PANO_URL });
+  env.clock.tick(1000);
+  assert.ok(env.store.has("svgp-route"));
+  env.location.href = PANO_URL; // directions closed, still in Street View
+  env.clock.tick(1000);
+  assert.equal(env.store.has("svgp-route"), false);
+});
+
+test("going to the map without directions forgets the route", () => {
+  const session = { "svgp-jumped": "1", "svgp-route": JSON.stringify({ dir: ROUTE_DIR, data: ROUTE_DATA }) };
+  const env = setup({ href: PANO_URL, session });
+  env.clock.tick(1000);
+  assert.ok(env.store.has("svgp-route")); // the URL after a jump may not show it
+  env.location.href = MAP_URL;
+  env.clock.tick(1000);
+  assert.equal(env.store.has("svgp-route"), false);
 });

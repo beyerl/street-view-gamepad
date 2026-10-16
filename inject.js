@@ -349,9 +349,80 @@
     const data = p.type === 2
       ? `!3m4!1e1!3m2!1s${p.id}!2e0`
       : `!3m5!1e1!3m3!1s${p.id}!2e10!3e11`;
-    location.assign(`${location.origin}/maps/@${p.lat},${p.lng},3a,${from.fov}y,` +
-      `${heading.toFixed(2)}h,${from.tilt}t/data=${data}${location.search}`);
+    const r = currentRoute();
+    try { sessionStorage.setItem(JUMPED_KEY, "1"); } catch {}
+    location.assign(`${location.origin}/maps/${r ? `${r.dir}/` : ""}@${p.lat},${p.lng},3a,${from.fov}y,` +
+      `${heading.toFixed(2)}h,${from.tilt}t/data=${data}${r?.data || ""}${location.search}`);
   }
+
+  // --- Route across jumps -----------------------------------------------------
+  // With directions open, the minimap in Street View shows the route. The URL
+  // holds it as a /maps/dir/<stops>/ path plus blocks in the data part next to
+  // the view's own !3m block. A jump loads a new URL, so it carries both over.
+  // The route is also remembered for the tab, in case the page after a jump
+  // doesn't show it in its URL, and forgotten once the user closes it.
+  const ROUTE_KEY = "svgp-route";
+  const JUMPED_KEY = "svgp-jumped"; // set just before a jump reloads the page
+
+  // Top-level blocks of a data part like "!3m6!1e1!3m4!1sX!2e0!7i1!8i1!4m2!4m1!1m0":
+  // "<field>m<n>" opens a block holding the next n tokens.
+  function dataBlocks(data) {
+    const tokens = data.split("!").filter(Boolean);
+    const blocks = [];
+    for (let i = 0; i < tokens.length;) {
+      const n = +(tokens[i].match(/^\d+m(\d+)$/)?.[1] || 0);
+      blocks.push(tokens.slice(i, i + 1 + n).map((t) => `!${t}`).join(""));
+      i += 1 + n;
+    }
+    return blocks;
+  }
+
+  function routeOf(href) {
+    const dir = href.match(/\/maps\/(dir\/.*?)\/@/);
+    if (!dir) return null;
+    const data = href.match(/\/data=([^/?#]*)/);
+    const blocks = data ? dataBlocks(data[1]).filter((b) => !/^!3[a-z]/.test(b)) : [];
+    return { dir: dir[1], data: blocks.join("") };
+  }
+
+  let savedRoute = null;
+  let routeSeen = false; // the URL showed a route since this page loaded
+  try {
+    // Only a jump carries the route over a reload; any other page load starts afresh.
+    if (sessionStorage.getItem(JUMPED_KEY)) savedRoute = JSON.parse(sessionStorage.getItem(ROUTE_KEY));
+    sessionStorage.removeItem(JUMPED_KEY);
+  } catch {}
+
+  function saveRoute(r) {
+    savedRoute = r;
+    try {
+      if (r) sessionStorage.setItem(ROUTE_KEY, JSON.stringify(r));
+      else sessionStorage.removeItem(ROUTE_KEY);
+    } catch {}
+  }
+
+  // Polled: keep the saved route in step with the URL. It goes when the route
+  // disappears from the URL (directions closed), or when the user is on the
+  // map without one.
+  function updateRoute() {
+    const r = routeOf(location.href);
+    if (r) {
+      routeSeen = true;
+      if (JSON.stringify(r) !== JSON.stringify(savedRoute)) saveRoute(r);
+    } else if (savedRoute && (routeSeen || !isStreetView())) {
+      log("debug", "route closed");
+      saveRoute(null);
+    }
+  }
+
+  function currentRoute() {
+    updateRoute();
+    return savedRoute;
+  }
+
+  saveRoute(savedRoute);
+  setInterval(updateRoute, 1000);
+  updateRoute();
 
   const angleDiff = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
 

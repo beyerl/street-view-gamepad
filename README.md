@@ -61,6 +61,12 @@ new panorama's URL, so the page reloads, which takes a moment. The search uses t
 unofficial endpoint the Maps web app uses (`/maps/photometa/si/v1`), so it may break if Google
 changes it. Distances and angles are constants (`JUMP_*`) in `inject.js`.
 
+If directions are open, the route on the Street View minimap is carried over to the new
+panorama: the jump keeps the `/maps/dir/…` part of the URL and the route's blocks in its
+`data=` part. The route is also remembered for the tab (session storage) in case the page after
+the jump doesn't show it in its URL, and forgotten as soon as you close the directions or go
+back to the map without them.
+
 ## Ambient sound
 
 The extension plays the field recording made closest to the position in the Maps URL (your
