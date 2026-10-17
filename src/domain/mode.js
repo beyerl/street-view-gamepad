@@ -41,7 +41,7 @@ export const MODE_TABLE = Object.freeze({
   [Mode.LEVELS]: { name: "Multilayer", buttons: [ModeCommand.LEVEL_UP, null, ModeCommand.LEVEL_DOWN] },
   [Mode.COMMENTARY]: {
     name: "Wikiaudio",
-    buttons: [ModeCommand.PLAY_PAUSE, ModeCommand.ARTICLE_NEXT, ModeCommand.ARTICLE_PREV],
+    buttons: [ModeCommand.PLAY_PAUSE, ModeCommand.ARTICLE_PREV, ModeCommand.ARTICLE_NEXT],
   },
   [Mode.BROWSER]: {
     name: "Browser",

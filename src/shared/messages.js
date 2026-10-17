@@ -28,6 +28,7 @@ export const Msg = Object.freeze({
   COMMENTARY_NOTICE: "commentaryNotice",
   // offscreen -> background
   COMMENTARY_ENDED: "commentaryEnded",
+  COMMENTARY_LOADING: "commentaryLoading",
 });
 
 /**

@@ -47,9 +47,13 @@ const HUD_CSS = `:host { position: fixed; z-index: ${TOP - 1}; display: flex; ga
 .m.on[data-mode=minimap] { color: #ba68c8; }
 .m.playing svg { animation: pulse 1.2s ease-in-out infinite; }
 svg { width: 20px; height: 20px; fill: currentColor; }
+i { display: none; width: 12px; height: 12px; box-sizing: border-box; border: 2px solid currentColor;
+  border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+.m.loading i { display: block; }
 span { color: #fff; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m:not(.active) span, span:empty { display: none; }
-@keyframes pulse { 50% { opacity: .4; } }`;
+@keyframes pulse { 50% { opacity: .4; } }
+@keyframes spin { to { transform: rotate(360deg); } }`;
 
 /** @param {{ HTMLElement: typeof HTMLElement, customElements: CustomElementRegistry }} win */
 export function defineComponents(win) {
@@ -83,7 +87,8 @@ export function defineComponents(win) {
     }
   }
 
-  /** The modes, as icons, the current one highlighted with a label. */
+  /** The modes, as icons, the current one highlighted with a label. A
+   * spinner next to the icon while the commentary is loading. */
   class Hud extends win.HTMLElement {
     constructor() {
       super();
@@ -101,13 +106,14 @@ export function defineComponents(win) {
           el = this.root.ownerDocument.createElement("div");
           el.className = "m";
           el.setAttribute("data-mode", c.id);
-          el.innerHTML = `${ICONS[c.id] || ""}<span></span>`;
+          el.innerHTML = `${ICONS[c.id] || ""}<i></i><span></span>`;
           this.root.appendChild(el);
           this.chips.set(c.id, el);
         }
         el.classList.toggle("active", c.active);
         el.classList.toggle("on", c.on);
         el.classList.toggle("playing", c.playing);
+        el.classList.toggle("loading", c.loading);
         el.querySelector("span").textContent = c.label;
       }
     }

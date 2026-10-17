@@ -1,6 +1,7 @@
 // The commentary: either a Spoken Wikipedia recording (one URL), or an
 // article read aloud, synthesized sentence by sentence a little ahead of
-// playback.
+// playback. Reports whether it is loading: asked to play, but not playing
+// yet (downloading, synthesizing, buffering).
 
 import { READ_AHEAD, READ_AHEAD_WAIT } from "../../shared/config.js";
 
@@ -11,9 +12,9 @@ export class CommentaryPlayer {
    * @param {{ audio: HTMLAudioElement, synthesizer: import("../../ports/index.js").SpeechSynthesizer,
    *           ambient: { duck(on: boolean): void }, URL: { createObjectURL(b: Blob): string, revokeObjectURL(u: string): void },
    *           sleep: (ms: number) => Promise<void>, onEnded: (error?: string) => void, onNotice: (message: string) => void,
-   *           warn: (...a: any[]) => void }} deps
+   *           onLoading?: (loading: boolean) => void, warn: (...a: any[]) => void }} deps
    */
-  constructor({ audio, synthesizer, ambient, URL, sleep, onEnded, onNotice, warn }) {
+  constructor({ audio, synthesizer, ambient, URL, sleep, onEnded, onNotice, onLoading = () => {}, warn }) {
     this.audio = audio;
     this.synthesizer = synthesizer;
     this.ambient = ambient;
@@ -21,13 +22,24 @@ export class CommentaryPlayer {
     this.sleep = sleep;
     this.onEnded = onEnded;
     this.onNotice = onNotice;
+    this.onLoading = onLoading;
     this.warn = warn;
     /** @type {Speech | null} */
     this.speech = null;
+    this.loading = false;
     audio.addEventListener("ended", () => {
       if (this.speech) this.nextSentence(this.speech);
       else this.finish();
     });
+    audio.addEventListener("playing", () => this.setLoading(false));
+    audio.addEventListener("waiting", () => this.setLoading(true));
+  }
+
+  /** @param {boolean} loading */
+  setLoading(loading) {
+    if (loading === this.loading) return;
+    this.loading = loading;
+    this.onLoading(loading);
   }
 
   /** @param {string} [error] */
@@ -44,14 +56,21 @@ export class CommentaryPlayer {
     this.audio.removeAttribute("src");
     this.audio.load();
     this.ambient.duck(false);
+    this.setLoading(false);
   }
 
   revokeCurrent() {
     if (this.audio.src.startsWith("blob:")) this.URL.revokeObjectURL(this.audio.src);
   }
 
-  startPlayback() {
+  /** @param {boolean} [loading] whether to show it loading until "playing";
+   * not between sentences, which would flicker */
+  startPlayback(loading = true) {
+    if (loading) this.setLoading(true);
     this.audio.play().catch((err) => {
+      // A newer src or a pause interrupted this play(): not a failure, and
+      // finishing here would stop what replaced it.
+      if (err?.name === "AbortError") return;
       this.warn("commentary play failed:", err);
       this.finish(`Commentary could not be played: ${err.message}`);
     });
@@ -71,6 +90,7 @@ export class CommentaryPlayer {
     /** @type {Speech} */
     const s = (this.speech = { queue: [], done: false, playing: true, waiting: true });
     this.ambient.duck(true);
+    this.setLoading(true);
     try {
       for await (const blob of this.synthesizer.speak(text, lang)) {
         if (this.speech !== s) return;
@@ -93,18 +113,20 @@ export class CommentaryPlayer {
     if (!url) {
       s.waiting = true;
       if (s.done) this.finish();
+      else this.setLoading(s.playing); // the next sentence isn't synthesized yet
       return;
     }
     if (s.waiting) this.onNotice(""); // clear "Downloading…"
     s.waiting = false;
     this.audio.src = url;
-    this.startPlayback();
+    this.startPlayback(false);
   }
 
   pause() {
     if (this.speech) this.speech.playing = false;
     this.audio.pause();
     this.ambient.duck(false);
+    this.setLoading(false);
   }
 
   /** False if there is nothing to resume (e.g. this document was recreated). */
@@ -115,6 +137,7 @@ export class CommentaryPlayer {
       this.ambient.duck(true);
       if (!s.waiting) this.startPlayback();
       else if (s.queue.length) this.nextSentence(s);
+      else this.setLoading(true);
       return true;
     }
     if (!this.audio.src) return false;

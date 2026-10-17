@@ -33,6 +33,8 @@ export class CommentaryService {
     this.state = new Stopped();
     /** @type {number | null} tab that sees download progress and errors */
     this.noticeTab = null;
+    /** Asked to play, but no sound yet. */
+    this.loading = false;
   }
 
   nearbyFor(/** @type {number} */ tabId) {
@@ -110,6 +112,7 @@ export class CommentaryService {
     await this.stop();
     this.state = new Playing(tabId, article);
     this.noticeTab = tabId;
+    this.loading = true;
     this.log(`commentary: ${article.title} (${article.audio ? "recording" : "text-to-speech"})`);
     if (article.audio) await this.audio.send({ type: OffscreenMsg.COMMENTARY_PLAY, url: article.audio });
     else
@@ -123,6 +126,7 @@ export class CommentaryService {
   async pauseCurrent() {
     const { tabId, article } = this.state;
     this.state = new Paused(tabId, article);
+    this.loading = false;
     await this.audio.send({ type: OffscreenMsg.COMMENTARY_PAUSE });
     this.push(tabId);
   }
@@ -140,6 +144,7 @@ export class CommentaryService {
     if (this.state instanceof Stopped) return;
     const { tabId } = this.state;
     this.state = new Stopped();
+    this.loading = false;
     if (await this.audio.isOpen()) await this.audio.send({ type: OffscreenMsg.COMMENTARY_STOP });
     this.push(tabId);
   }
@@ -150,7 +155,14 @@ export class CommentaryService {
     if (this.state instanceof Stopped) return;
     const { tabId } = this.state;
     this.state = new Stopped();
+    this.loading = false;
     this.push(tabId);
+  }
+
+  /** The offscreen document started or stopped waiting for sound. @param {boolean} loading */
+  setLoading(loading) {
+    this.loading = !!loading;
+    if (this.state instanceof Playing) this.push(this.state.tabId);
   }
 
   /** A message box on the page: download progress, or why a commentary can't
@@ -182,6 +194,7 @@ export class CommentaryService {
         title: a?.title || "",
         status: mine ? this.state.status : PlaybackStatus.STOPPED,
         playingTitle: (mine && this.state.article?.title) || "",
+        loading: mine && this.state instanceof Playing && this.loading,
         index: list?.index || 0,
         count: list?.count || 0,
       },

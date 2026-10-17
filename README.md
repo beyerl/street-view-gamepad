@@ -17,13 +17,24 @@ buttons are named by position as on an Xbox pad: Y top, B right, A bottom, X lef
 | Mode button 2           | D-pad right  | L      | what the current mode says                                       | same              |
 | Mode button 3           | D-pad down   | R      | what the current mode says                                       | same              |
 
+### Xbox Classic
+
+![Xbox Classic preset: Y/A walk, X/B step, left stick looks, LT/RT zoom, D-pad left selects the mode, D-pad up/right/down are mode buttons 1-3](docs/xbox-classic.svg)
+
+### SNES
+
+![SNES preset: the top and bottom face buttons walk, the D-pad looks, the left and right face buttons zoom, Select selects the mode, Start/L/R are mode buttons 1-3](docs/snes.svg)
+
+The SNES pad prints its own letters on the face buttons (X top, A right, B bottom, Y left); the
+table above names them by position, as on an Xbox pad.
+
 Holding walk or zoom repeats it. Stepping keeps the view direction and works in Street View
 only.
 
 | Mode         | Mode button 1     | Mode button 2          | Mode button 3      |
 | ------------ | ----------------- | ---------------------- | ------------------ |
 | 1 Multilayer | one floor up      | —                      | one floor down     |
-| 2 Wikiaudio  | play / pause      | next article           | previous article   |
+| 2 Wikiaudio  | play / pause      | previous article       | next article       |
 | 3 Browser    | toggle fullscreen | hide / show search bar | browser back       |
 | 4 Minimap    | enlarge / shrink  | zoom in (repeats)      | zoom out (repeats) |
 
@@ -57,7 +68,7 @@ mode is remembered for the tab.
   Set the log level to _Debug_ to see what was found.
 - **Wikiaudio** (speaker icon): the icon turns orange when there is a Wikipedia article
   about a place within 500 m, and the label shows its title. Mode button 1 plays it, pauses it
-  and resumes it. Nothing plays automatically. When several articles are nearby, the label numbers them
+  and resumes it. Nothing plays automatically. A spinner next to the icon shows while it loads (downloading, or synthesizing the voice). When several articles are nearby, the label numbers them
   (_Title (2/5)_) and mode buttons 2 and 3 switch between them. If the article has a [Spoken
   Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:WikiProject_Spoken_Wikipedia) recording,
   you hear that person reading it. Otherwise a built-in voice reads the article's

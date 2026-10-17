@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 50 790 400" width="790" height="400" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+  <title>SNES preset</title>
+  <rect x="60" y="50" width="790" height="400" rx="16" fill="#ffffff"/>
+  <!-- shoulder buttons -->
+  <rect x="255" y="124" width="110" height="34" rx="10" fill="#8c959f"/>
+  <rect x="535" y="124" width="110" height="34" rx="10" fill="#8c959f"/>
+  <text x="310" y="142" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">L</text>
+  <text x="590" y="142" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">R</text>
+  <!-- body -->
+  <rect x="230" y="150" width="440" height="170" rx="85" fill="#d0d7de" stroke="#424a53" stroke-width="3"/>
+  <!-- D-pad -->
+  <circle cx="320" cy="235" r="44" fill="#afb8c1"/>
+  <rect x="309" y="202" width="22" height="66" rx="3" fill="#32383f"/>
+  <rect x="287" y="224" width="66" height="22" rx="3" fill="#32383f"/>
+  <!-- select / start -->
+  <g fill="#57606a">
+    <rect x="404" y="246" width="32" height="11" rx="5.5" transform="rotate(-25 420 251)"/>
+    <rect x="454" y="246" width="32" height="11" rx="5.5" transform="rotate(-25 470 251)"/>
+  </g>
+  <text x="420" y="282" font-size="10" fill="#57606a" text-anchor="middle">SELECT</text>
+  <text x="470" y="282" font-size="10" fill="#57606a" text-anchor="middle">START</text>
+  <!-- face buttons, with the letters printed on an SNES pad -->
+  <circle cx="580" cy="235" r="46" fill="#afb8c1"/>
+  <g font-size="13" font-weight="700" text-anchor="middle" fill="#fff">
+    <circle cx="580" cy="205" r="14" fill="#0969da"/><text x="580" y="210">X</text>
+    <circle cx="610" cy="235" r="14" fill="#cf222e"/><text x="610" y="240">A</text>
+    <circle cx="580" cy="265" r="14" fill="#d4a72c"/><text x="580" y="270">B</text>
+    <circle cx="550" cy="235" r="14" fill="#1a7f37"/><text x="550" y="240">Y</text>
+  </g>
+  <!-- callouts -->
+  <g stroke="#57606a" stroke-width="1.5" fill="none">
+    <polyline points="198,90 260,90 290,124"/>
+    <polyline points="198,235 287,235"/>
+    <polyline points="702,90 640,90 610,124"/>
+    <polyline points="702,175 640,175 591,196"/>
+    <polyline points="702,235 625,235"/>
+    <polyline points="702,300 640,300 591,274"/>
+    <polyline points="380,378 380,330 340,330 340,300 408,258"/>
+    <polyline points="470,408 470,258"/>
+    <polyline points="545,378 545,250"/>
+  </g>
+  <g font-size="16" fill="#1f2328">
+    <g text-anchor="end">
+      <text x="190" y="95">Mode button 2</text>
+      <text x="190" y="240">Look around</text>
+    </g>
+    <g text-anchor="start">
+      <text x="710" y="95">Mode button 3</text>
+      <text x="710" y="180">Walk forward</text>
+      <text x="710" y="240">Zoom out</text>
+      <text x="710" y="305">Walk backward</text>
+    </g>
+    <g text-anchor="middle">
+      <text x="380" y="398">Select mode</text>
+      <text x="470" y="428">Mode button 1</text>
+      <text x="545" y="398">Zoom in</text>
+    </g>
+  </g>
+</svg>

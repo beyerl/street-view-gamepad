@@ -57,6 +57,7 @@ export function startBackground({ chrome, fetch, console, random = Math.random, 
     // From the offscreen document:
     if (msg?.type === Msg.COMMENTARY_ENDED) return void commentary.ended(msg.error);
     if (msg?.type === Msg.COMMENTARY_NOTICE) return void commentary.notice(msg.message);
+    if (msg?.type === Msg.COMMENTARY_LOADING) return void commentary.setLoading(msg.loading);
     if (sender.tab) fromTab[msg?.type]?.(sender.tab, msg);
   });
 

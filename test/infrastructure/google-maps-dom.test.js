@@ -188,6 +188,25 @@ test("the minimap's size button: by label first, else the one in its upper right
   assert.equal(empty.dom.minimapSizeButton(empty.map), null);
 });
 
+test("the minimap's size button just outside its canvas, or without a canvas at all (#21)", () => {
+  const env = minimapSetup();
+  const frame = setRect(env.el("button"), 195, 575, 20, 20); // on the frame above the canvas
+  assert.equal(env.dom.minimapSizeButton(env.map), frame);
+  const collapsed = minimapSetup();
+  collapsed.map.remove();
+  setRect(collapsed.el("button", collapsed.document.body, { "aria-label": "Collapse side panel" }), 600, 400, 20, 20);
+  const show = setRect(
+    collapsed.el("button", collapsed.document.body, { "aria-label": "Show the map" }),
+    10,
+    740,
+    40,
+    40,
+  );
+  assert.equal(collapsed.dom.minimapSizeButton(null), show);
+  show.remove();
+  assert.equal(collapsed.dom.minimapSizeButton(null), null);
+});
+
 test("clicks are full mouse clicks in the middle; wheel notches too", () => {
   const env = setup();
   const b = setRect(env.el("button"), 900, 300, 40, 30);

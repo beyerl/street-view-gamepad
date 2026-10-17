@@ -41,7 +41,7 @@ test("the Xbox preset is the default: face buttons walk and step, stick looks, D
   assert.deepEqual(defaultButtonMap(), presetButtonMap("xbox"));
   assert.deepEqual(presetButtonMap("bogus"), presetButtonMap("xbox"));
   const x = presetButtonMap("xbox");
-  assert.deepEqual([x.forward, x.back, x.strafeLeft, x.strafeRight], [3, 0, 2, 1]);
+  assert.deepEqual([x.forward, x.back, x.strafeLeft, x.strafeRight], [4, 0, 3, 1]);
   assert.deepEqual([x.lookUp, x.lookDown, x.lookLeft, x.lookRight], ["a1-", "a1+", "a0-", "a0+"]);
   assert.deepEqual([x.zoomIn, x.zoomOut], [6, 7]);
   assert.deepEqual([x.mode, x.mode1, x.mode2, x.mode3], [14, 12, 15, 13]);
@@ -69,6 +69,10 @@ test("stored maps: unknown actions dropped, missing ones defaulted, maps from be
   assert.equal(m.back, 0);
   assert.equal("historyForward" in m, false);
   assert.deepEqual(normalizeButtonMap({ forward: 7, action: 1 }), defaultButtonMap());
+  // v1.10.0's Xbox preset got walk and step wrong (#19): a stored copy is replaced.
+  const old = { ...defaultButtonMap(), forward: 3, strafeLeft: 2 };
+  assert.deepEqual(normalizeButtonMap(old), defaultButtonMap());
+  assert.equal(normalizeButtonMap({ ...old, zoomIn: 8 }).forward, 3); // customized: kept
 });
 
 test("actions by kind", () => {

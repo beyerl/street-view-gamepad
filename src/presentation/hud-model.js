@@ -4,8 +4,8 @@ import { Mode, MODE_TABLE, MODES } from "../domain/mode.js";
 import { PlaybackStatus } from "../domain/commentary-state.js";
 
 /**
- * @typedef {{ available: boolean, title: string, status: string, playingTitle: string, index: number, count: number }} CommentaryView
- * @typedef {{ id: string, active: boolean, on: boolean, playing: boolean, label: string }} Chip
+ * @typedef {{ available: boolean, title: string, status: string, playingTitle: string, loading?: boolean, index: number, count: number }} CommentaryView
+ * @typedef {{ id: string, active: boolean, on: boolean, playing: boolean, loading: boolean, label: string }} Chip
  */
 
 /** @param {{ mode: string, floor: string | null, commentary: CommentaryView }} s floor: the current floor's label, "" if unknown, null if no picker
@@ -16,11 +16,13 @@ export function hudChips({ mode, floor, commentary: c }) {
     [Mode.LEVELS]: {
       on: floor !== null,
       playing: false,
+      loading: false,
       label: floor !== null ? `Floor ${floor || "?"}` : "No floors here",
     },
     [Mode.COMMENTARY]: {
       on: c.available || c.status !== PlaybackStatus.STOPPED,
-      playing: c.status === PlaybackStatus.PLAYING,
+      playing: c.status === PlaybackStatus.PLAYING && !c.loading,
+      loading: c.status === PlaybackStatus.PLAYING && !!c.loading,
       label:
         c.status === PlaybackStatus.PLAYING
           ? c.playingTitle
@@ -32,8 +34,8 @@ export function hudChips({ mode, floor, commentary: c }) {
                 : c.title
               : "Nothing nearby",
     },
-    [Mode.BROWSER]: { on: true, playing: false, label: MODE_TABLE[Mode.BROWSER].name },
-    [Mode.MINIMAP]: { on: true, playing: false, label: MODE_TABLE[Mode.MINIMAP].name },
+    [Mode.BROWSER]: { on: true, playing: false, loading: false, label: MODE_TABLE[Mode.BROWSER].name },
+    [Mode.MINIMAP]: { on: true, playing: false, loading: false, label: MODE_TABLE[Mode.MINIMAP].name },
   };
   return MODES.map((id) => ({ id, active: id === mode, ...chips[id] }));
 }

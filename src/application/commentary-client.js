@@ -15,6 +15,7 @@ const NOTHING = Object.freeze({
   title: "",
   status: PlaybackStatus.STOPPED,
   playingTitle: "",
+  loading: false,
   index: 0,
   count: 0,
 });

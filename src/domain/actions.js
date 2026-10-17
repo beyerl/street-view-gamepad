@@ -64,9 +64,9 @@ export const MODE_BUTTONS = Object.freeze(actionsOfKind(ActionKind.MODE_BUTTON))
 // triggers, 8 select / back, 9 start, 12-15 D-pad up/down/left/right; axes 0/1
 // the left stick. Face buttons go by position, so Y is the top one on both pads.
 const XBOX = {
-  [Action.FORWARD]: 3,
+  [Action.FORWARD]: 4,
   [Action.BACK]: 0,
-  [Action.STRAFE_LEFT]: 2,
+  [Action.STRAFE_LEFT]: 3,
   [Action.STRAFE_RIGHT]: 1,
   [Action.LOOK_UP]: "a1-",
   [Action.LOOK_DOWN]: "a1+",
@@ -97,6 +97,9 @@ const SNES = {
   [Action.MODE_3]: 5,
 };
 
+/** The Xbox Classic preset of v1.10.0, before walk and step were corrected (#19). */
+const XBOX_1_10 = { ...XBOX, [Action.FORWARD]: 3, [Action.STRAFE_LEFT]: 2 };
+
 /** @typedef {{ id: string, label: string, map: Readonly<Record<string, BindingValue>> }} Preset */
 
 /** The key mappings to start from; the first is the default.
@@ -114,20 +117,23 @@ export function presetButtonMap(presetId) {
 /** @returns {Record<string, BindingValue>} action id -> its default binding */
 export const defaultButtonMap = () => presetButtonMap();
 
+/** @param {Record<string, BindingValue>} map @param {Readonly<Record<string, BindingValue>>} preset */
+const isExactly = (map, preset) => ACTIONS.every((a) => (map[a.id] ?? null) === preset[a.id]);
+
 /** The preset a map is exactly, or null for a custom one. @param {Record<string, BindingValue>} map */
-export const presetOf = (map) =>
-  PRESETS.find((p) => ACTIONS.every((a) => (map[a.id] ?? null) === p.map[a.id]))?.id ?? null;
+export const presetOf = (map) => PRESETS.find((p) => isExactly(map, p.map))?.id ?? null;
 
 /**
  * A stored map completed with the defaults and cleaned of actions that no
  * longer exist. Maps from before the mode buttons (v1.10) bound actions that
  * are now mode commands, and keeping their bindings would clash with the new
- * defaults, so they start over from the default preset.
+ * defaults, so they start over from the default preset. So does a stored
+ * copy of v1.10.0's Xbox Classic preset, which got walk and step wrong.
  * @param {Record<string, BindingValue> | undefined} stored @returns {Record<string, BindingValue>}
  */
 export function normalizeButtonMap(stored) {
   const map = defaultButtonMap();
-  if (!stored || !(Action.MODE_1 in stored)) return map;
+  if (!stored || !(Action.MODE_1 in stored) || isExactly(stored, XBOX_1_10)) return map;
   for (const a of ACTIONS) if (a.id in stored) map[a.id] = stored[a.id];
   return map;
 }
