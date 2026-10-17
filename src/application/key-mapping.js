@@ -2,7 +2,7 @@
 // player assign a gamepad button or axis to each, like the Recalbox /
 // EmulationStation input configuration.
 
-import { ACTIONS, defaultButtonMap } from "../domain/actions.js";
+import { ACTIONS, defaultButtonMap, normalizeButtonMap, presetButtonMap, presetOf } from "../domain/actions.js";
 import { InputDetector } from "../domain/binding.js";
 
 export const IDLE = -1;
@@ -29,7 +29,7 @@ export class KeyMappingSession {
 
   /** @param {Record<string, any>} stored */
   load(stored) {
-    this.map = { ...defaultButtonMap(), ...stored };
+    this.map = normalizeButtonMap(stored);
     this.onChange();
   }
 
@@ -66,8 +66,14 @@ export class KeyMappingSession {
     await this.save(this.map);
   }
 
-  async reset() {
-    this.map = defaultButtonMap();
+  /** The preset the current map is, or null for a custom one. */
+  get preset() {
+    return presetOf(this.map);
+  }
+
+  /** Replaces the map with a preset's. @param {string} presetId */
+  async applyPreset(presetId) {
+    this.map = presetButtonMap(presetId);
     this.end();
     await this.save(this.map);
   }

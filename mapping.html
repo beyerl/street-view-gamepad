@@ -13,9 +13,20 @@
           sans-serif;
         margin: 16px;
       }
-      h1 {
+      h1,
+      h2 {
         font-size: 16px;
         margin: 0 0 8px;
+      }
+      h2 {
+        margin-top: 16px;
+      }
+      #preset-row {
+        margin-bottom: 8px;
+      }
+      select {
+        font: inherit;
+        margin-left: 6px;
       }
       #prompt {
         margin: 12px 0;
@@ -32,15 +43,17 @@
         border-collapse: collapse;
         margin-bottom: 12px;
       }
-      td {
+      td,
+      th {
         padding: 5px 6px;
+        text-align: left;
         border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
       }
       td.btn {
         text-align: right;
         font-variant-numeric: tabular-nums;
       }
-      tr {
+      svgp-binding-table tr {
         cursor: pointer;
       }
       tr.current {
@@ -61,15 +74,22 @@
     <h1>Gamepad key mapping</h1>
     <div id="status" class="hint"></div>
     <div id="prompt"></div>
+    <div id="preset-row">
+      <label for="preset">Controller</label>
+      <select id="preset"></select>
+    </div>
     <svgp-binding-table id="list"></svgp-binding-table>
     <button id="start">Configure all</button>
     <button id="skip" disabled>Skip (Enter)</button>
     <button id="cancel" disabled>Cancel (Esc)</button>
-    <button id="defaults">Reset mapping</button>
     <p class="hint">
-      Click an action to remap just that one. Buttons, sticks and other axes (e.g. Joy-Con sticks) can be assigned;
-      leave sticks at rest when starting. Press any gamepad button once if no gamepad is detected.
+      Choosing a controller replaces the mapping with its preset. Click an action to remap just that one. Buttons,
+      sticks and other axes (e.g. Joy-Con sticks) can be assigned; leave sticks at rest when starting. Press any gamepad
+      button once if no gamepad is detected.
     </p>
+    <h2>Modes</h2>
+    <p class="hint">Select mode cycles through the modes; the mode buttons do what the current mode says.</p>
+    <svgp-mode-table></svgp-mode-table>
     <script src="dist/mapping.js"></script>
   </body>
 </html>

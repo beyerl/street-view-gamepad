@@ -129,23 +129,17 @@ const keyAction = (input, k) => ({
 /** @param {(deltaY: number) => void} wheel @param {number} deltaY */
 const wheelAction = (wheel, deltaY) => ({ down: () => wheel(deltaY), up: () => {} });
 
-/** Street View: keys walk and zoom, the wheel zooms the minimap. @implements {ViewControls} */
+/** Street View: keys walk and zoom. @implements {ViewControls} */
 export class StreetViewControls extends ViewControls {
-  /** @param {SceneInput} input @param {DragLook} look @param {import("./google-maps-dom.js").GoogleMapsDom} dom */
-  constructor(input, look, dom) {
+  /** @param {SceneInput} input @param {DragLook} look */
+  constructor(input, look) {
     super();
     this.lookControl = look;
-    const minimapWheel = (/** @type {number} */ deltaY) => {
-      const map = dom.minimap();
-      if (map) dom.wheel(map, deltaY);
-    };
     this.actions = {
       [Action.FORWARD]: keyAction(input, KEYS.up),
       [Action.BACK]: keyAction(input, KEYS.down),
       [Action.ZOOM_IN]: keyAction(input, KEYS.zoomIn),
       [Action.ZOOM_OUT]: keyAction(input, KEYS.zoomOut),
-      [Action.MINIMAP_ZOOM_IN]: wheelAction(minimapWheel, -WHEEL_STEP),
-      [Action.MINIMAP_ZOOM_OUT]: wheelAction(minimapWheel, WHEEL_STEP),
     };
   }
   held(/** @type {string} */ action) {

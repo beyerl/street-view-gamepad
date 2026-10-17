@@ -82,8 +82,8 @@ function setup({ href = PANO, session = {} } = {}) {
 test("asks for the settings and applies them", () => {
   const env = setup();
   assert.deepEqual(env.window.posted[0], { source: Source.PAGE, type: "getSettings" });
-  env.fromBridge({ type: "settings", settings: { lookSpeedX: 1000, buttonMap: { lookRight: 7 } } });
-  env.press(7);
+  env.fromBridge({ type: "settings", settings: { lookSpeedX: 1000, buttonMap: { lookRight: 9, mode1: 12 } } });
+  env.press(9);
   env.clock.tick(16);
   const move = env.rec.of("pointermove")[0];
   assert.ok(Math.abs(move.clientX - (400 - 16)) < 1e-9);
@@ -101,9 +101,9 @@ test("forward in Street View presses ArrowUp on the scene; the HUD shows with a 
   assert.equal(hud.chip("levels").classList.contains("active"), true);
 });
 
-test("the mode button switches mode, remembered for the tab, and looks up commentary", () => {
+test("the mode select button switches mode, remembered for the tab, and looks up commentary", () => {
   const env = setup();
-  env.press(2);
+  env.press(14);
   env.clock.tick(16);
   assert.equal(env.store.get("svgp-mode"), "commentary");
   assert.deepEqual(env.posted("commentaryAt")[0], { source: Source.PAGE, type: "commentaryAt", lat: 52.5, lng: 13.4 });
@@ -138,12 +138,15 @@ test("reports the position for ambient sound; a hidden tab stops it and pauses c
   assert.equal(env.posted("commentaryPause").length, 1);
 });
 
-test("history buttons, notices from the background, and gamepad connection logs", () => {
+test("browser mode buttons, notices from the background, and gamepad connection logs", () => {
   const env = setup();
-  env.fromBridge({ type: "settings", settings: { buttonMap: { historyBack: 6 } } });
-  env.press(6);
+  env.app.modes.set("browser");
+  env.press(13); // mode button 3
   env.clock.tick(16);
   assert.equal(env.g.history.back.calls.length, 1);
+  env.press(12); // mode button 1
+  env.clock.tick(16);
+  assert.equal(env.posted("toggleFullscreen").length, 1);
   env.fromBridge({ type: "commentaryNotice", message: "Downloading voice…", ms: 0 });
   assert.equal(env.document.querySelector("svgp-toast").text, "Downloading voice…");
   env.window.dispatch("gamepadconnected", { gamepad: { id: "Xbox" } });

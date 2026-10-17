@@ -35,7 +35,7 @@ function setup({ withScene = true } = {}) {
     look,
     settings,
     rec,
-    sv: new StreetViewControls(input, look, dom),
+    sv: new StreetViewControls(input, look),
     map: new MapControls(input, look),
   };
 }
@@ -86,23 +86,6 @@ test("the map zooms with the wheel over the scene's centre, and pans when walkin
   );
   assert.equal(env.map.held(Action.FORWARD), null);
   assert.equal(env.map.walkPans, true);
-});
-
-test("minimap zoom scrolls over the minimap, only if there is one", () => {
-  const env = setup();
-  env.sv.held(Action.MINIMAP_ZOOM_IN).down(false);
-  const map = setRect(env.document.createElement("canvas"), 10, 600, 200, 150);
-  env.document.body.appendChild(map);
-  const rec = recordEvents(map);
-  env.sv.held(Action.MINIMAP_ZOOM_IN).down(false);
-  env.sv.held(Action.MINIMAP_ZOOM_OUT).down(false);
-  assert.deepEqual(
-    rec.of("wheel").map((w) => [w.deltaY, w.clientX, w.clientY]),
-    [
-      [-100, 110, 675],
-      [100, 110, 675],
-    ],
-  );
 });
 
 test("looking drags the scene opposite to the look direction, from its centre", () => {
