@@ -40,6 +40,20 @@ test("scheduler: a stalled tab doesn't make tasks catch up", () => {
   assert.equal(slow.calls.length, 1);
 });
 
+test("scheduler: a task that throws is reported and doesn't stop the others", () => {
+  const clock = makeClock();
+  const errors = [];
+  const s = new TickScheduler(clock, 16, (e) => errors.push(e.message));
+  const after = spy();
+  s.every(16, () => {
+    throw new Error("boom");
+  });
+  s.every(16, after);
+  clock.tick(20);
+  assert.deepEqual(errors, ["boom"]);
+  assert.equal(after.calls.length, 1);
+});
+
 test("session store: survives storage that throws; memory store for tests", () => {
   const data = new Map();
   const ok = new SessionStore(() => ({

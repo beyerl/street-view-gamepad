@@ -9,9 +9,11 @@ export class TickScheduler extends Scheduler {
    * @param {{ setInterval: typeof setInterval, setTimeout: typeof setTimeout, clearTimeout: typeof clearTimeout,
    *           now: () => number }} timers
    * @param {number} tickMs the base tick; every() periods are rounded up to it
+   * @param {(error: unknown) => void} [onError] for a task that throws
    */
-  constructor(timers, tickMs) {
+  constructor(timers, tickMs, onError = () => {}) {
     super();
+    this.onError = onError;
     this.timers = timers;
     this.tickMs = tickMs;
     /** @type {{ ms: number, fn: () => void, next: number }[]} */
@@ -33,7 +35,11 @@ export class TickScheduler extends Scheduler {
       if (now < t.next) continue;
       t.next += t.ms;
       if (t.next <= now) t.next = now + t.ms; // fell behind (stalled tab): don't catch up
-      t.fn();
+      try {
+        t.fn();
+      } catch (e) {
+        this.onError(e); // one failing task must not stop the others
+      }
     }
   }
 

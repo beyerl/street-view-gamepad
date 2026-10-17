@@ -15,6 +15,7 @@ const COLUMN_TOLERANCE = 8; // px the centres of a floor picker's buttons may di
 const OVERLAY_DEPTH = 6; // how deep to look for top-left panels
 const OVERLAY_LAYER_WIDTH = 0.9; // of the window: the full-page layer holding the search box
 const MIN_STYLED_LEVELS = 3; // to tell the current floor by its odd style
+const MINIMAP_MAX_SIZE = 0.75; // of the window's width and height: bigger canvases belong to the scene
 const OBSTACLE_LEFT = 1 / 3; // eslint-disable-line no-magic-numbers -- of the width: Maps' controls we avoid are right of this
 const OBSTACLE_MAX_AREA = 1 / 4; // eslint-disable-line no-magic-numbers -- of the window: bigger elements are layers, not controls
 
@@ -145,8 +146,12 @@ export class GoogleMapsDom extends MapsPage {
 
   // --- Minimap ------------------------------------------------------------------
   // A map canvas other than the scene, reaching into the lower left quarter.
+  // The scene can have more than one full-window canvas, so big ones don't
+  // count: scrolling those would zoom the scene instead of the minimap.
 
   minimap() {
+    const W = this.window.innerWidth;
+    const H = this.window.innerHeight;
     const scene = this.sceneCanvas();
     for (const c of this.document.querySelectorAll("canvas")) {
       if (c === scene) continue;
@@ -154,8 +159,10 @@ export class GoogleMapsDom extends MapsPage {
       if (
         r.width &&
         r.height &&
-        r.left < this.window.innerWidth / 2 &&
-        r.bottom > this.window.innerHeight / 2 &&
+        r.width < W * MINIMAP_MAX_SIZE &&
+        r.height < H * MINIMAP_MAX_SIZE &&
+        r.left < W / 2 &&
+        r.bottom > H / 2 &&
         this.visible(c)
       )
         return c;

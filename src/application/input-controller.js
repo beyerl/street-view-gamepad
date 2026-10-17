@@ -120,9 +120,12 @@ export class InputController {
 
     for (const name of PRESS) {
       const down = pressed(name);
-      if (down && !this.wasPressed.has(name)) this.commands[name]?.();
-      if (down) this.wasPressed.add(name);
-      else this.wasPressed.delete(name);
+      if (!down) this.wasPressed.delete(name);
+      else if (!this.wasPressed.has(name)) {
+        // Marked first, so a command that throws doesn't run again every tick.
+        this.wasPressed.add(name);
+        this.commands[name]?.();
+      }
     }
   }
 }
