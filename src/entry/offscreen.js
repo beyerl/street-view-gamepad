@@ -35,6 +35,7 @@ export function startOffscreen(g) {
     sleep: (ms) => new Promise((r) => g.setTimeout(r, ms)),
     onEnded: (error) => notify({ type: Msg.COMMENTARY_ENDED, error }),
     onNotice,
+    onLoading: (loading) => notify({ type: Msg.COMMENTARY_LOADING, loading }),
     warn: (...a) => g.console.warn(...a),
   });
 

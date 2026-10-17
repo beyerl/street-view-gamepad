@@ -87,12 +87,12 @@ test("asks for the settings and applies them", () => {
   env.clock.tick(16);
   const move = env.rec.of("pointermove")[0];
   assert.ok(Math.abs(move.clientX - (400 - 16)) < 1e-9);
-  assert.equal(env.app.settings.buttonMap.forward, 3); // defaults kept
+  assert.equal(env.app.settings.buttonMap.forward, 4); // defaults kept
 });
 
 test("forward in Street View presses ArrowUp on the scene; the HUD shows with a gamepad", () => {
   const env = setup();
-  env.press(3);
+  env.press(4);
   env.clock.tick(16);
   assert.equal(env.rec.of("keydown")[0].key, "ArrowUp");
   env.clock.tick(500);
@@ -122,7 +122,7 @@ test("shows the next jump point and jumps there from a dead end", async () => {
   env.clock.tick(250 + 400 + 16);
   await flush();
   assert.equal(env.document.querySelector("svgp-hint").text, "Next jump point 20 m");
-  env.press(3);
+  env.press(4);
   env.clock.tick(1300);
   assert.deepEqual(env.location.assign.calls, [
     ["https://www.google.com/maps/@52.5,13.400295,3a,75y,90.00h,90t/data=!3m4!1e1!3m2!1sPANO2!2e0"],

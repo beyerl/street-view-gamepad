@@ -86,6 +86,10 @@ export class PiperSynthesizer extends SpeechSynthesizer {
     ort.env.wasm.numThreads = 1; // more threads don't help with these models
     /** @type {(message: string) => void} while downloading */
     this.onProgress = () => {};
+    /** The last synthesis started: a voice's session runs one at a time, and
+     * a new commentary can start while the old one's sentence is still being
+     * synthesized. @type {Promise<unknown>} */
+    this.running = Promise.resolve();
     this.phonemizerFiles = memo(async () => {
       const [wasm, data] = await Promise.all([
         this.fetch(this.getURL("vendor/piper_phonemize.wasm")).then((r) => r.arrayBuffer()),
@@ -174,7 +178,9 @@ export class PiperSynthesizer extends SpeechSynthesizer {
       scales: new Tensor("float32", Float32Array.from([noise_scale, length_scale, noise_w]), [3]),
     };
     if (Object.keys(config.speaker_id_map || {}).length) feeds.sid = new Tensor("int64", BigInt64Array.from([0n]), [1]);
-    const { output } = await session.run(feeds);
+    const run = this.running.catch(() => {}).then(() => session.run(feeds));
+    this.running = run;
+    const { output } = await run;
     return new this.Blob([wavBytes(output.data, config.audio.sample_rate)], { type: "audio/wav" });
   }
 

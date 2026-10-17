@@ -14,10 +14,10 @@ const c = (s = {}) => ({ available: false, title: "", status: "stopped", playing
 test("chips: the active mode, floors, and every commentary state", () => {
   const chips = hudChips({ mode: "levels", floor: "2", commentary: c() });
   assert.deepEqual(chips, [
-    { id: "levels", active: true, on: true, playing: false, label: "Floor 2" },
-    { id: "commentary", active: false, on: false, playing: false, label: "Nothing nearby" },
-    { id: "browser", active: false, on: true, playing: false, label: "Browser" },
-    { id: "minimap", active: false, on: true, playing: false, label: "Minimap" },
+    { id: "levels", active: true, on: true, playing: false, loading: false, label: "Floor 2" },
+    { id: "commentary", active: false, on: false, playing: false, loading: false, label: "Nothing nearby" },
+    { id: "browser", active: false, on: true, playing: false, loading: false, label: "Browser" },
+    { id: "minimap", active: false, on: true, playing: false, loading: false, label: "Minimap" },
   ]);
   assert.equal(hudChips({ mode: "minimap", floor: null, commentary: c() })[3].active, true);
   assert.equal(hudChips({ mode: "levels", floor: "", commentary: c() })[0].label, "Floor ?");
@@ -26,6 +26,7 @@ test("chips: the active mode, floors, and every commentary state", () => {
     active: true,
     on: false,
     playing: false,
+    loading: false,
     label: "No floors here",
   });
   const label = (s) => hudChips({ mode: "commentary", floor: null, commentary: c(s) })[1];
@@ -36,8 +37,12 @@ test("chips: the active mode, floors, and every commentary state", () => {
     active: true,
     on: true,
     playing: true,
+    loading: false,
     label: "Tor",
   });
+  const loading = label({ status: "playing", playingTitle: "Tor", loading: true });
+  assert.deepEqual([loading.playing, loading.loading, loading.label], [false, true, "Tor"]);
+  assert.equal(label({ status: "paused", playingTitle: "Tor", loading: true }).loading, false);
   assert.equal(label({ status: "paused", playingTitle: "Tor" }).label, "⏸ Tor");
 });
 
@@ -75,6 +80,11 @@ test("components live in Shadow DOM: toast and hint show text, the HUD renders c
   assert.equal(chip.className, "m active on playing");
   assert.equal(chip.querySelector("span").textContent, "Tor");
   assert.ok(chip.querySelector("svg"));
+  const spinning = c({ status: "playing", playingTitle: "Tor", loading: true });
+  hud.render(hudChips({ mode: "commentary", floor: null, commentary: spinning }));
+  assert.equal(chip.className, "m active on loading");
+  assert.ok(chip.querySelector("i"));
+  assert.match(hud.shadowRoot.querySelector("style").textContent, /\.m\.loading i \{ display: block/);
   assert.equal(document.body.querySelector(".m"), null); // nothing leaks into the page
 });
 
@@ -218,7 +228,7 @@ test("mode table: a row per mode with what each mode button does", () => {
   assert.deepEqual(text("thead tr"), [["Mode", "Mode button 1", "Mode button 2", "Mode button 3"]]);
   assert.deepEqual(text("tbody tr"), [
     ["1 Multilayer", "One floor up", "—", "One floor down"],
-    ["2 Wikiaudio", "Play / pause", "Next article", "Previous article"],
+    ["2 Wikiaudio", "Play / pause", "Previous article", "Next article"],
     ["3 Browser", "Fullscreen", "Hide / show search bar", "Browser back"],
     ["4 Minimap", "Enlarge / shrink", "Zoom in", "Zoom out"],
   ]);

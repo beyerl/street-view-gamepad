@@ -9,12 +9,13 @@ const HIDE_ATTR = "data-svgp-hidden";
 const LEVEL_SEL = 'button, [role="button"], [role="radio"], [role="option"], [role="menuitemradio"], [role="tab"]';
 const SELECTED_ATTRS = ["aria-checked", "aria-pressed", "aria-selected"];
 const MINIMAP_SIZE_RE =
-  /expand|collapse|enlarge|shrink|maximi|minimi|vergr|verklein|erweiter|einklapp|ausklapp|agrandir|réduire|ampliar|reducir/i;
+  /minimap|(show|hide) (the )?map|karte (anzeigen|ausblenden|einblenden)|expand|collapse|enlarge|shrink|maximi|minimi|vergr|verklein|erweiter|einklapp|ausklapp|agrandir|réduire|ampliar|reducir/i;
 const LABEL_ATTRS = ["aria-label", "title", "data-tooltip"];
 const COLUMN_TOLERANCE = 8; // px the centres of a floor picker's buttons may differ
 const OVERLAY_DEPTH = 6; // how deep to look for top-left panels
 const OVERLAY_LAYER_WIDTH = 0.9; // of the window: the full-page layer holding the search box
 const MIN_STYLED_LEVELS = 3; // to tell the current floor by its odd style
+const MINIMAP_REACH = 40; // px around the minimap's canvas its buttons may sit
 const MINIMAP_MAX_SIZE = 0.75; // of the window's width and height: bigger canvases belong to the scene
 const OBSTACLE_LEFT = 1 / 3; // eslint-disable-line no-magic-numbers -- of the width: Maps' controls we avoid are right of this
 const OBSTACLE_MAX_AREA = 1 / 4; // eslint-disable-line no-magic-numbers -- of the window: bigger elements are layers, not controls
@@ -170,31 +171,44 @@ export class GoogleMapsDom extends MapsPage {
     return null;
   }
 
-  /** The enlarge / shrink button: by its label, else the button on the minimap
-   * closest to its upper right corner, where Maps puts it. @param {Element} map */
+  /** The enlarge / shrink button: by its label on or near the minimap, else
+   * by its label anywhere in the lower left (a collapsed minimap may have no
+   * canvas at all, only the button to show it), else the button on the
+   * minimap closest to its upper right corner, where Maps puts it.
+   * @param {Element | null} map */
   minimapSizeButton(map) {
-    const m = map.getBoundingClientRect();
-    const buttons = [...this.document.querySelectorAll('button, [role="button"]')].filter((b) => {
-      const r = b.getBoundingClientRect();
-      return (
-        r.width &&
-        r.height &&
-        r.left < m.right &&
-        r.right > m.left &&
-        r.top < m.bottom &&
-        r.bottom > m.top &&
-        this.visible(b)
-      );
-    });
+    const W = this.window.innerWidth;
+    const H = this.window.innerHeight;
+    const m = map?.getBoundingClientRect();
+    /** @type {{ el: Element, r: DOMRect }[]} */
+    const buttons = [];
+    for (const el of this.document.querySelectorAll('button, [role="button"]')) {
+      if (this.isOwn(el)) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height && this.visible(el)) buttons.push({ el, r });
+    }
+    // The button can sit just outside the canvas, on the minimap's frame.
+    const near = ({ r }) =>
+      !!m &&
+      r.left < m.right + MINIMAP_REACH &&
+      r.right > m.left - MINIMAP_REACH &&
+      r.top < m.bottom + MINIMAP_REACH &&
+      r.bottom > m.top - MINIMAP_REACH;
+    const lowerLeft = ({ r }) => r.left < W / 2 && r.bottom > H / 2;
     const label = (/** @type {Element} */ b) => LABEL_ATTRS.map((a) => b.getAttribute(a) || "").join(" ");
-    this.log("debug", `minimap buttons: ${buttons.map((b) => JSON.stringify(label(b))).join(", ")}`);
-    const byLabel = buttons.find((b) => MINIMAP_SIZE_RE.test(label(b)));
-    if (byLabel) return byLabel;
-    const corner = (/** @type {Element} */ b) => {
-      const r = b.getBoundingClientRect();
-      return Math.hypot(m.right - r.right, r.top - m.top);
-    };
-    return buttons.sort((a, b) => corner(a) - corner(b))[0] || null;
+    const labelled = buttons.filter((b) => MINIMAP_SIZE_RE.test(label(b.el)));
+    this.log(
+      "debug",
+      `minimap buttons: ${buttons
+        .filter((b) => near(b) || lowerLeft(b))
+        .map((b) => JSON.stringify(label(b.el)))
+        .join(", ")}`,
+    );
+    const byLabel = labelled.find(near) || labelled.find(lowerLeft);
+    if (byLabel) return byLabel.el;
+    if (!m) return null;
+    const corner = ({ r }) => Math.hypot(m.right - r.right, r.top - m.top);
+    return buttons.filter(near).sort((a, b) => corner(a) - corner(b))[0]?.el || null;
   }
 
   // --- Synthetic input ----------------------------------------------------------

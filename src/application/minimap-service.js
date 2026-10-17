@@ -10,8 +10,7 @@ export class MinimapService {
   }
 
   toggle() {
-    const map = this.page.minimap();
-    const button = map && this.page.minimapSizeButton(map);
+    const button = this.page.minimapSizeButton(this.page.minimap());
     if (button) this.page.click(button);
     else this.toast.show("No minimap here.", TOAST_SHORT);
   }

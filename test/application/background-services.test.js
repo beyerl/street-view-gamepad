@@ -177,6 +177,7 @@ test("commentary: a lookup reports the best article, numbered among those nearby
     title: "Title 2",
     status: "stopped",
     playingTitle: "",
+    loading: false,
     index: 0,
     count: 2,
   });
@@ -217,11 +218,16 @@ test("commentary: toggle starts text-to-speech, pauses, resumes", async () => {
     title: "Title 2",
     status: "playing",
     playingTitle: "Title 2",
+    loading: true, // until the offscreen document says it plays
     index: 0,
     count: 2,
   });
+  env.svc.setLoading(false);
+  assert.deepEqual([env.last().status, env.last().loading], ["playing", false]);
   await env.svc.toggle(5);
-  assert.equal(env.last().status, "paused");
+  assert.deepEqual([env.last().status, env.last().loading], ["paused", false]);
+  env.svc.setLoading(true); // a late message: not loading while paused
+  assert.equal(env.last().loading, false);
   await env.svc.toggle(5);
   assert.equal(env.last().status, "playing");
   assert.deepEqual(env.audio.types().slice(1), [OffscreenMsg.COMMENTARY_PAUSE, OffscreenMsg.COMMENTARY_RESUME]);

@@ -24,6 +24,7 @@ class FakeAudio {
   }
   play() {
     if (this.playError) return Promise.reject(this.playError);
+    if (this.pendingPlay) return new Promise((_, reject) => (this.abort = () => reject(this.pendingPlay)));
     this.paused = false;
     return Promise.resolve();
   }
@@ -102,6 +103,7 @@ function commentarySetup({ sentences = ["s1", "s2", "s3"], fail } = {}) {
   };
   const onEnded = spy();
   const onNotice = spy();
+  const onLoading = spy();
   const warn = spy();
   const player = new CommentaryPlayer({
     audio,
@@ -111,9 +113,10 @@ function commentarySetup({ sentences = ["s1", "s2", "s3"], fail } = {}) {
     sleep: () => flush(1),
     onEnded,
     onNotice,
+    onLoading,
     warn,
   });
-  return { audio, ambient, URL, player, onEnded, onNotice, warn };
+  return { audio, ambient, URL, player, onEnded, onNotice, onLoading, warn };
 }
 
 test("commentary: a recording plays with the ambient sound ducked, and ends", async () => {
@@ -177,6 +180,37 @@ test("commentary: a new commentary stops the old speech", async () => {
   env.player.playRecording("r");
   await first;
   assert.equal(env.audio.src, "r");
+});
+
+test("commentary: a play() interrupted by the next commentary is no failure (#20)", async () => {
+  const env = commentarySetup();
+  env.audio.pendingPlay = Object.assign(new Error("interrupted by a new load request"), { name: "AbortError" });
+  env.player.playRecording("r1");
+  const abortFirst = env.audio.abort;
+  env.player.playRecording("r2");
+  abortFirst();
+  await flush();
+  assert.deepEqual([env.audio.src, env.onEnded.calls.length, env.ambient.duck.calls.at(-1)], ["r2", 0, [true]]);
+});
+
+test("commentary: loading until the audio plays, also while waiting for a sentence (#23)", async () => {
+  const env = commentarySetup({ sentences: ["s1"] });
+  env.player.playRecording("r");
+  assert.deepEqual(env.onLoading.calls, [[true]]);
+  env.audio.emit("playing");
+  env.audio.emit("waiting");
+  env.audio.emit("playing");
+  env.player.pause();
+  assert.deepEqual(
+    env.onLoading.calls.map((c) => c[0]),
+    [true, false, true, false],
+  );
+  env.onLoading.calls.length = 0;
+  env.player.speak("t", "en");
+  assert.deepEqual(env.onLoading.calls, [[true]]); // synthesizing
+  await flush();
+  env.audio.emit("playing");
+  assert.deepEqual(env.onLoading.calls.at(-1), [false]);
 });
 
 // --- Piper ---------------------------------------------------------------------------
@@ -271,6 +305,26 @@ test("piper: speaks one WAV per sentence, downloading voice and data once with p
   await env.piper.preload("en");
   assert.equal(env.fetch.calls.length, fetched);
   assert.equal(env.store.size, 3); // all three downloads in the cache
+});
+
+test("piper: synthesis runs one sentence at a time, also across two commentaries (#20)", async () => {
+  const env = piperSetup();
+  let active = 0;
+  let most = 0;
+  const v = await env.piper.voice("en");
+  const run = v.session.run;
+  v.session.run = async (feeds) => {
+    most = Math.max(most, ++active);
+    await flush();
+    active--;
+    return run(feeds);
+  };
+  const all = async (text) => {
+    for await (const _ of env.piper.speak(text, "en"));
+  };
+  await Promise.all([all("One. Two."), all("Three. Four.")]);
+  assert.equal(most, 1);
+  assert.equal(env.runs.length, 4);
 });
 
 test("piper: served from the cache without downloading; failed downloads are retried", async () => {

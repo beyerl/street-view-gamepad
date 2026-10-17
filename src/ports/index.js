@@ -161,7 +161,7 @@ export class MapsPage {
   minimap() {
     throw new Error("abstract");
   }
-  /** @param {Element} map @returns {Element | null} */
+  /** @param {Element | null} map the minimap, if found @returns {Element | null} */
   minimapSizeButton(map) {
     throw new Error("abstract");
   }

@@ -182,3 +182,11 @@ test("offscreen audio: opens the document once and sends messages with the volum
   });
   assert.equal(await audio.isOpen(), true);
 });
+
+test("offscreen audio: messages sent at once create the document only once", async () => {
+  const chrome = makeChrome();
+  const audio = new ChromeOffscreenAudio(chrome, async () => ({ ambient: 1, commentary: 1 }));
+  await Promise.all([audio.send({ type: "play" }), audio.send({ type: "commentaryPreload" })]);
+  assert.equal(chrome.offscreen.createDocument.calls.length, 1);
+  assert.equal(chrome.runtime.sendMessage.calls.length, 2);
+});

@@ -13,13 +13,26 @@ export class ChromeOffscreenAudio extends OffscreenAudio {
     super();
     this.chrome = chrome;
     this.volumes = volumes;
+    /** @type {Promise<void> | null} while creating the document */
+    this.creating = null;
   }
 
   async isOpen() {
     return (await this.chrome.runtime.getContexts({ contextTypes: [/** @type {any} */ (CONTEXT)] })).length > 0;
   }
 
+  /** Messages often come in pairs (walking moves both the ambient sound and
+   * the commentary lookup); only one may create the document, a second
+   * createDocument fails and its message would be lost. */
   async ensureOpen() {
+    if (!this.creating)
+      this.creating = this.create().finally(() => {
+        this.creating = null;
+      });
+    await this.creating;
+  }
+
+  async create() {
     if (await this.isOpen()) return;
     await this.chrome.offscreen.createDocument({
       url: "offscreen.html",

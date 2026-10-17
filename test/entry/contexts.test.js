@@ -165,6 +165,7 @@ test("background: fullscreen and commentary end to end", async () => {
     title: "Title 1",
     status: "paused",
     playingTitle: "Title 1",
+    loading: false,
     index: 1,
     count: 2,
   });
@@ -357,7 +358,7 @@ test("key mapping window: lists the actions, configures with a gamepad, Enter/Es
   preset.dispatchEvent(new window.Event("change"));
   await flush();
   assert.equal(chrome.storage.sync.data.buttonMap.lookUp, "a1-");
-  assert.equal(chrome.storage.sync.data.buttonMap.forward, 3);
+  assert.equal(chrome.storage.sync.data.buttonMap.forward, 4);
 });
 
 // --- the built extension -----------------------------------------------------------------

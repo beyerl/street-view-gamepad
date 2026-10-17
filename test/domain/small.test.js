@@ -23,7 +23,7 @@ test("mode table: three mode buttons per mode, each command labelled", () => {
   }
   assert.equal(modeCommand(Mode.LEVELS, 0), "levelUp");
   assert.equal(modeCommand(Mode.LEVELS, 1), null);
-  assert.equal(modeCommand(Mode.COMMENTARY, 2), "articlePrev");
+  assert.equal(modeCommand(Mode.COMMENTARY, 2), "articleNext");
   assert.equal(modeCommand(Mode.BROWSER, 1), "overlay");
   assert.equal(modeCommand(Mode.MINIMAP, 1), "minimapZoomIn");
   assert.equal(modeCommand("bogus", 0), null);
