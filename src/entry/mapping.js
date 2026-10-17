@@ -1,10 +1,12 @@
 // Composition root of the key mapping window.
 
 import { KeyMappingSession } from "../application/key-mapping.js";
+import { PRESETS } from "../domain/actions.js";
 import { GamepadInput } from "../infrastructure/browser.js";
 import { defineSettingsComponents, ROW_SELECT } from "../presentation/settings-components.js";
 
 const POLL = 30;
+const CUSTOM = "custom";
 
 /** @param {any} g */
 export function startMapping(g) {
@@ -13,7 +15,15 @@ export function startMapping(g) {
   const table = document.getElementById("list");
   const promptEl = document.getElementById("prompt");
   const statusEl = document.getElementById("status");
+  const presetEl = document.getElementById("preset");
   const input = new GamepadInput(g.navigator);
+  for (const p of [...PRESETS, { id: CUSTOM, label: "Custom" }]) {
+    const o = document.createElement("option");
+    o.value = p.id;
+    o.textContent = p.label;
+    o.disabled = p.id === CUSTOM; // shown, not chosen: the map was changed after picking a preset
+    presetEl.appendChild(o);
+  }
 
   const render = () => {
     const s = session;
@@ -23,6 +33,7 @@ export function startMapping(g) {
     );
     for (const id of ["skip", "cancel"]) document.getElementById(id).disabled = !s.configuring;
     document.getElementById("start").disabled = s.configuring;
+    presetEl.value = s.preset ?? CUSTOM;
     promptEl.textContent = "";
     if (!s.configuring) {
       promptEl.textContent = "Idle.";
@@ -41,7 +52,7 @@ export function startMapping(g) {
   document.getElementById("start").addEventListener("click", () => session.begin(0, false));
   document.getElementById("skip").addEventListener("click", () => session.advance());
   document.getElementById("cancel").addEventListener("click", () => session.end());
-  document.getElementById("defaults").addEventListener("click", () => session.reset());
+  presetEl.addEventListener("change", () => session.applyPreset(presetEl.value));
   document.addEventListener("keydown", (/** @type {KeyboardEvent} */ e) => {
     if (!session.configuring) return;
     if (e.key === "Enter") session.advance();

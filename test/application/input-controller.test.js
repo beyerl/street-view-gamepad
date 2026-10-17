@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { InputController } from "../../src/application/input-controller.js";
-import { Action } from "../../src/domain/actions.js";
+import { Action, presetButtonMap } from "../../src/domain/actions.js";
+import { Mode, ModeCommand } from "../../src/domain/mode.js";
 import { withDefaults } from "../../src/domain/settings.js";
 import { makeClock, pad, spy } from "../helpers/fakes.js";
 
-const B = withDefaults().buttonMap;
+// Buttons only, so pad() can press them all.
+const B = presetButtonMap("snes");
 
 function controls(walkPans) {
   const log = [];
@@ -18,7 +20,7 @@ function controls(walkPans) {
     looks: [],
     walkPans,
     held: (name) =>
-      [Action.FORWARD, Action.BACK, Action.ZOOM_IN, Action.MINIMAP_ZOOM_IN].includes(name) &&
+      [Action.FORWARD, Action.BACK, Action.ZOOM_IN].includes(name) &&
       !(walkPans && [Action.FORWARD, Action.BACK].includes(name))
         ? held(name)
         : null,
@@ -28,23 +30,24 @@ function controls(walkPans) {
   };
 }
 
-function setup({ buttonMap = {}, streetView = true } = {}) {
+function setup({ buttonMap = {}, streetView = true, mode = Mode.LEVELS } = {}) {
   const clock = makeClock();
-  const state = { pads: [], hidden: false, streetView };
+  const state = { pads: [], hidden: false, streetView, mode };
   const sv = controls(false);
   const map = controls(true);
   const jump = { onWalk: spy(), cancel: spy(), checkingBack: false };
-  const commands = Object.fromEntries(Object.values(Action).map((a) => [a, spy()]));
+  const commands = Object.fromEntries([...Object.values(Action), ...Object.values(ModeCommand)].map((a) => [a, spy()]));
   const log = spy();
   const c = new InputController({
     input: { pads: () => state.pads },
-    settings: withDefaults({ buttonMap }),
+    settings: withDefaults({ buttonMap: { ...B, ...buttonMap } }),
     isHidden: () => state.hidden,
     isStreetView: () => state.streetView,
     streetView: sv,
     map,
     jump,
     commands,
+    mode: () => state.mode,
     now: () => clock.now(),
     log,
   });
@@ -83,7 +86,7 @@ test("a held action presses on, repeats after a delay, and releases", () => {
 });
 
 test("press actions run once per press, whatever their binding", () => {
-  const env = setup({ buttonMap: { historyBack: "a1-", strafeLeft: 6 } });
+  const env = setup({ buttonMap: { strafeRight: "a1-", strafeLeft: 6 } });
   env.press(B.mode);
   env.tick();
   env.tick(500);
@@ -94,9 +97,58 @@ test("press actions run once per press, whatever their binding", () => {
   assert.equal(env.commands.mode.calls.length, 2);
   env.state.pads = [pad([6], [0, -1])];
   env.tick();
-  assert.equal(env.commands.historyBack.calls.length, 1);
+  assert.equal(env.commands.strafeRight.calls.length, 1);
   assert.equal(env.commands.strafeLeft.calls.length, 1);
-  assert.equal(env.commands.articleNext.calls.length, 0); // unassigned
+});
+
+test("mode buttons run what the current mode assigns to them, once per press", () => {
+  const env = setup();
+  env.press(B.mode1);
+  env.tick();
+  env.tick(500);
+  env.press(B.mode2); // nothing in floors mode
+  env.tick();
+  env.press(B.mode3);
+  env.tick();
+  assert.equal(env.commands.levelUp.calls.length, 1);
+  assert.equal(env.commands.levelDown.calls.length, 1);
+  env.press();
+  env.tick();
+  env.state.mode = Mode.BROWSER;
+  env.press(B.mode1, B.mode2, B.mode3);
+  env.tick();
+  for (const c of ["fullscreen", "overlay", "historyBack"]) assert.equal(env.commands[c].calls.length, 1, c);
+});
+
+test("minimap zoom repeats while held; the command stays the one from the press", () => {
+  const env = setup({ mode: Mode.MINIMAP });
+  env.press(B.mode1, B.mode2);
+  env.tick();
+  env.state.mode = Mode.LEVELS; // switched while held: no effect until released
+  env.tick(400);
+  env.tick(150);
+  assert.equal(env.commands.minimapToggle.calls.length, 1);
+  assert.equal(env.commands.minimapZoomIn.calls.length, 3);
+  assert.equal(env.commands.levelUp.calls.length, 0);
+  env.press();
+  env.tick();
+  env.press(B.mode1);
+  env.tick();
+  assert.equal(env.commands.levelUp.calls.length, 1);
+});
+
+test("a mode command that throws still runs only once per press", () => {
+  const env = setup();
+  let runs = 0;
+  env.commands.levelUp = () => {
+    runs++;
+    throw new Error("boom");
+  };
+  env.press(B.mode1);
+  assert.throws(() => env.tick());
+  env.tick();
+  env.tick(500);
+  assert.equal(runs, 1);
 });
 
 test("look actions look in their direction, scaled by time; on the map walking pans", () => {

@@ -12,12 +12,16 @@
 
 export const Tag = Object.freeze({ HUD: "svgp-hud", TOAST: "svgp-toast", HINT: "svgp-hint" });
 
-// Material "layers" and "volume_up"
+// Material "layers", "volume_up", "tab" and "map"
 export const ICONS = Object.freeze({
   levels:
     '<svg viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>',
   commentary:
     '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>',
+  browser:
+    '<svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h10v4h8v10z"/></svg>',
+  minimap:
+    '<svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>',
 });
 
 const TOP = 2147483647; // z-index above everything of Maps
@@ -39,6 +43,8 @@ const HUD_CSS = `:host { position: fixed; z-index: ${TOP - 1}; display: flex; ga
 .m.active { opacity: 1; background: rgba(255, 255, 255, .16); }
 .m.on[data-mode=levels] { color: #4fc3f7; }
 .m.on[data-mode=commentary] { color: #ffb74d; }
+.m.on[data-mode=browser] { color: #81c784; }
+.m.on[data-mode=minimap] { color: #ba68c8; }
 .m.playing svg { animation: pulse 1.2s ease-in-out infinite; }
 svg { width: 20px; height: 20px; fill: currentColor; }
 span { color: #fff; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

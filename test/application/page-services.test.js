@@ -22,7 +22,9 @@ test("modes: start in floors, cycle, remember for the tab, notify", () => {
   modes.next();
   assert.equal(store.get(SessionKey.MODE), Mode.COMMENTARY);
   modes.next();
-  assert.deepEqual(seen, [Mode.COMMENTARY, Mode.LEVELS]);
+  modes.next();
+  modes.next();
+  assert.deepEqual(seen, [Mode.COMMENTARY, Mode.BROWSER, Mode.MINIMAP, Mode.LEVELS]);
   assert.equal(new ModeService(new MemoryStore({ [SessionKey.MODE]: "commentary" }), noLog).mode, Mode.COMMENTARY);
   assert.equal(new ModeService(new MemoryStore({ [SessionKey.MODE]: "bogus" }), noLog).mode, Mode.LEVELS);
 });
@@ -115,6 +117,21 @@ test("minimap: clicks its size button, or says there is none", () => {
   assert.deepEqual(page.click.calls, [[{ b: 1 }]]);
 });
 
+test("minimap: zooms with the wheel over it, or says there is none", () => {
+  const toast = fakeToast();
+  const page = { map: null, minimap: () => page.map, wheel: spy() };
+  const minimap = new MinimapService(/** @type {any} */ (page), toast);
+  minimap.zoom(1);
+  assert.equal(toast.text, "No minimap here.");
+  page.map = { m: 1 };
+  minimap.zoom(1);
+  minimap.zoom(-1);
+  assert.deepEqual(page.wheel.calls, [
+    [{ m: 1 }, -100],
+    [{ m: 1 }, 100],
+  ]);
+});
+
 function commentarySetup({ mode = Mode.LEVELS } = {}) {
   const bus = fakeBus();
   const navigator = fakeNavigator("https://www.google.com/maps/@52.5,13.4,15z");
@@ -144,7 +161,7 @@ test("commentary: looks up on entering the mode, then after moving 50 m, never w
   env.hide(false);
   env.c.lookup();
   assert.equal(env.bus.of(Msg.COMMENTARY_AT).length, 2);
-  env.modes.next();
+  env.modes.set(Mode.LEVELS);
   env.modes.next(); // back in commentary: looks up again even without moving
   assert.equal(env.bus.of(Msg.COMMENTARY_AT).length, 3);
 });

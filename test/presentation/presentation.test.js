@@ -16,7 +16,10 @@ test("chips: the active mode, floors, and every commentary state", () => {
   assert.deepEqual(chips, [
     { id: "levels", active: true, on: true, playing: false, label: "Floor 2" },
     { id: "commentary", active: false, on: false, playing: false, label: "Nothing nearby" },
+    { id: "browser", active: false, on: true, playing: false, label: "Browser" },
+    { id: "minimap", active: false, on: true, playing: false, label: "Minimap" },
   ]);
+  assert.equal(hudChips({ mode: "minimap", floor: null, commentary: c() })[3].active, true);
   assert.equal(hudChips({ mode: "levels", floor: "", commentary: c() })[0].label, "Floor ?");
   assert.deepEqual(hudChips({ mode: "levels", floor: null, commentary: c() })[0], {
     id: "levels",
@@ -66,7 +69,8 @@ test("components live in Shadow DOM: toast and hint show text, the HUD renders c
   const hud = document.createElement(Tag.HUD);
   hud.render(hudChips({ mode: "commentary", floor: null, commentary: c({ status: "playing", playingTitle: "Tor" }) }));
   hud.render(hudChips({ mode: "commentary", floor: null, commentary: c({ status: "playing", playingTitle: "Tor" }) }));
-  assert.equal(hud.shadowRoot.querySelectorAll(".m").length, 2);
+  assert.equal(hud.shadowRoot.querySelectorAll(".m").length, 4);
+  for (const id of ["levels", "commentary", "browser", "minimap"]) assert.ok(hud.chip(id).querySelector("svg"), id);
   const chip = hud.chip("commentary");
   assert.equal(chip.className, "m active on playing");
   assert.equal(chip.querySelector("span").textContent, "Tor");
@@ -201,4 +205,21 @@ test("binding table: rows with labels, the current one marked, clicks select", (
   table.addEventListener(ROW_SELECT, (e) => (selected = e.detail.index));
   rows[2].dispatchEvent(new window.MouseEvent("click"));
   assert.equal(selected, 2);
+});
+
+test("mode table: a row per mode with what each mode button does", () => {
+  const { window, document } = makeDom("chrome-extension://x/mapping.html");
+  defineSettingsComponents(window);
+  const el = document.createElement("svgp-mode-table");
+  document.body.appendChild(el);
+  el.remove();
+  document.body.appendChild(el); // reconnecting doesn't render twice
+  const text = (sel) => [...el.querySelectorAll(sel)].map((r) => [...r.children].map((c) => c.textContent));
+  assert.deepEqual(text("thead tr"), [["Mode", "Mode button 1", "Mode button 2", "Mode button 3"]]);
+  assert.deepEqual(text("tbody tr"), [
+    ["1 Multilayer", "One floor up", "—", "One floor down"],
+    ["2 Wikiaudio", "Play / pause", "Next article", "Previous article"],
+    ["3 Browser", "Fullscreen", "Hide / show search bar", "Browser back"],
+    ["4 Minimap", "Enlarge / shrink", "Zoom in", "Zoom out"],
+  ]);
 });

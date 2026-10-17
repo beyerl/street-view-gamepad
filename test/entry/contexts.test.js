@@ -30,7 +30,7 @@ function fakeWindow() {
 
 test("bridge: pushes settings merged with the defaults, on load, on request and on change", async () => {
   const window = fakeWindow();
-  const chrome = makeChrome({ sync: { lookSpeedX: 1000, buttonMap: { forward: 7 } } });
+  const chrome = makeChrome({ sync: { lookSpeedX: 1000, buttonMap: { forward: 7, mode1: 12 } } });
   startBridge({ window, chrome });
   await flush();
   const settings = window.posted[0].settings;
@@ -290,10 +290,10 @@ test("popup: shows the stored settings and saves changes; mapping and reset butt
   assert.equal(g.close.calls.length, 1);
 });
 
-test("key mapping window: lists the actions, configures with a gamepad, Enter/Escape", async () => {
+test("key mapping window: lists the actions, configures with a gamepad, Enter/Escape, presets", async () => {
   const { window, document } = extensionPage("mapping.html");
   const clock = makeClock();
-  const chrome = makeChrome({ sync: { buttonMap: { forward: 7 } } });
+  const chrome = makeChrome({ sync: { buttonMap: { forward: 7, mode1: 12 } } });
   const state = { pads: [] };
   const g = {
     document,
@@ -312,6 +312,17 @@ test("key mapping window: lists the actions, configures with a gamepad, Enter/Es
     [...rows()[0].children].map((td) => td.textContent),
     ["Walk forward / pan north", "Button 7"],
   );
+  const preset = /** @type {HTMLSelectElement} */ (document.getElementById("preset"));
+  assert.deepEqual(
+    [...preset.options].map((o) => [o.value, o.textContent, o.disabled]),
+    [
+      ["xbox", "Xbox Classic", false],
+      ["snes", "SNES", false],
+      ["custom", "Custom", true],
+    ],
+  );
+  assert.equal(preset.value, "custom");
+  assert.equal(document.querySelectorAll("svgp-mode-table tbody tr").length, 4);
   assert.equal(document.getElementById("prompt").textContent, "Idle.");
   clock.tick(30);
   assert.equal(document.getElementById("status").textContent, "No gamepad detected.");
@@ -337,8 +348,15 @@ test("key mapping window: lists the actions, configures with a gamepad, Enter/Es
   assert.equal(session.step, 3);
   document.getElementById("skip").click();
   assert.equal(session.configuring, false); // just that one
-  document.getElementById("defaults").click();
+  preset.value = "snes";
+  preset.dispatchEvent(new window.Event("change"));
   await flush();
+  assert.equal(chrome.storage.sync.data.buttonMap.lookUp, 12);
+  assert.equal(preset.value, "snes");
+  preset.value = "xbox";
+  preset.dispatchEvent(new window.Event("change"));
+  await flush();
+  assert.equal(chrome.storage.sync.data.buttonMap.lookUp, "a1-");
   assert.equal(chrome.storage.sync.data.buttonMap.forward, 3);
 });
 

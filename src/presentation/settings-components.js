@@ -1,9 +1,15 @@
 // Components of the extension's own pages (popup, key mapping window). These
 // render into the light DOM so the page's stylesheet applies.
 
+import { ACTIONS, MODE_BUTTONS } from "../domain/actions.js";
 import { bindingLabel } from "../domain/binding.js";
+import { COMMAND_LABELS, MODE_TABLE, MODES } from "../domain/mode.js";
 
-export const SettingTag = Object.freeze({ SETTING: "svgp-setting", BINDINGS: "svgp-binding-table" });
+export const SettingTag = Object.freeze({
+  SETTING: "svgp-setting",
+  BINDINGS: "svgp-binding-table",
+  MODES: "svgp-mode-table",
+});
 export const SETTING_CHANGE = "setting-change";
 export const ROW_SELECT = "row-select";
 
@@ -116,9 +122,31 @@ export function defineSettingsComponents(win) {
     }
   }
 
+  /** What the mode buttons do in each mode: one row per mode, one column per mode button. */
+  class ModeTable extends win.HTMLElement {
+    connectedCallback() {
+      if (this.table) return;
+      this.table = document.createElement("table");
+      const head = this.table.createTHead().insertRow();
+      for (const text of ["Mode", ...MODE_BUTTONS.map((id) => ACTIONS.find((a) => a.id === id)?.label ?? id)]) {
+        const th = document.createElement("th");
+        th.textContent = text;
+        head.appendChild(th);
+      }
+      const body = this.table.createTBody();
+      MODES.forEach((mode, i) => {
+        const tr = body.insertRow();
+        tr.insertCell().textContent = `${i + 1} ${MODE_TABLE[mode].name}`;
+        for (const cmd of MODE_TABLE[mode].buttons) tr.insertCell().textContent = cmd ? COMMAND_LABELS[cmd] : "—";
+      });
+      this.appendChild(this.table);
+    }
+  }
+
   for (const [tag, cls] of [
     [SettingTag.SETTING, Setting],
     [SettingTag.BINDINGS, BindingTable],
+    [SettingTag.MODES, ModeTable],
   ]) {
     if (!win.customElements.get(/** @type {string} */ (tag)))
       win.customElements.define(/** @type {string} */ (tag), /** @type {any} */ (cls));

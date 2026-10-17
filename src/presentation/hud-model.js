@@ -1,6 +1,6 @@
 // What the mode display shows, and where it goes. Pure: no DOM.
 
-import { Mode, MODES } from "../domain/mode.js";
+import { Mode, MODE_TABLE, MODES } from "../domain/mode.js";
 import { PlaybackStatus } from "../domain/commentary-state.js";
 
 /**
@@ -32,6 +32,8 @@ export function hudChips({ mode, floor, commentary: c }) {
                 : c.title
               : "Nothing nearby",
     },
+    [Mode.BROWSER]: { on: true, playing: false, label: MODE_TABLE[Mode.BROWSER].name },
+    [Mode.MINIMAP]: { on: true, playing: false, label: MODE_TABLE[Mode.MINIMAP].name },
   };
   return MODES.map((id) => ({ id, active: id === mode, ...chips[id] }));
 }

@@ -1,9 +1,11 @@
 // Turns the gamepads' state into actions, every tick: held actions press on
 // and repeat, look actions drag the view, press actions run once per press
-// (Command pattern: `commands` maps action ids to what they do).
+// (Command pattern: `commands` maps action ids and mode commands to what they
+// do). The mode buttons run what the current mode assigns to them.
 
-import { Action, ActionKind, actionsOfKind } from "../domain/actions.js";
+import { Action, ActionKind, actionsOfKind, MODE_BUTTONS } from "../domain/actions.js";
 import { isBindingActive } from "../domain/binding.js";
+import { modeCommand, REPEATING } from "../domain/mode.js";
 import { KEY_REPEAT_DELAY, KEY_REPEAT_INTERVAL, MAX_FRAME } from "../shared/config.js";
 import { WalkEdge } from "./jump-service.js";
 
@@ -16,9 +18,9 @@ export class InputController {
    *           isHidden: () => boolean, isStreetView: () => boolean,
    *           streetView: import("../ports/index.js").ViewControls, map: import("../ports/index.js").ViewControls,
    *           jump: import("./jump-service.js").JumpService, commands: Record<string, () => void>,
-   *           now: () => number, log: (level: string, ...a: any[]) => void }} deps
+   *           mode: () => string, now: () => number, log: (level: string, ...a: any[]) => void }} deps
    */
-  constructor({ input, settings, isHidden, isStreetView, streetView, map, jump, commands, now, log }) {
+  constructor({ input, settings, isHidden, isStreetView, streetView, map, jump, commands, mode, now, log }) {
     this.input = input;
     this.settings = settings;
     this.isHidden = isHidden;
@@ -27,6 +29,7 @@ export class InputController {
     this.map = map;
     this.jump = jump;
     this.commands = commands;
+    this.mode = mode;
     this.now = now;
     this.log = log;
     /** @type {Map<string, { action: { down(repeat: boolean): void, up(): void }, nextAt: number }>} */
@@ -57,16 +60,26 @@ export class InputController {
   /** @param {string} name @param {ReturnType<import("../ports/index.js").ViewControls["held"]>} action @param {boolean} pressed @param {number} now */
   updateHeld(name, action, pressed, now) {
     const state = this.held.get(name);
+    // Marked first, so an action that throws doesn't run again every tick.
     if (pressed && !state && action) {
-      action.down(false);
       this.held.set(name, { action, nextAt: now + KEY_REPEAT_DELAY });
+      action.down(false);
     } else if (pressed && state && now >= state.nextAt) {
-      state.action.down(true);
       state.nextAt = now + KEY_REPEAT_INTERVAL;
+      state.action.down(true);
     } else if (!pressed && state) {
       state.action.up();
       this.held.delete(name);
     }
+  }
+
+  /** What mode button `index` does in the current mode, as a held action, or
+   * null if nothing. Only some commands repeat while held. @param {number} index */
+  modeButton(index) {
+    const cmd = modeCommand(this.mode(), index);
+    const run = cmd && this.commands[cmd];
+    if (!run) return null;
+    return { down: (/** @type {boolean} */ repeat) => (!repeat || REPEATING.has(cmd)) && run(), up: () => {} };
   }
 
   /** @param {import("../domain/binding.js").PadState[]} pads */
@@ -100,6 +113,11 @@ export class InputController {
     const controls = streetView ? this.streetView : this.map;
 
     for (const name of HELD) this.updateHeld(name, controls.held(name), pressed(name), now);
+    // Looked up on press only: the command stays the same while held.
+    MODE_BUTTONS.forEach((name, i) => {
+      const down = pressed(name);
+      this.updateHeld(name, down && !this.held.has(name) ? this.modeButton(i) : null, down, now);
+    });
 
     // On the map, forward / back pan like look up / down.
     const dir = (/** @type {string} */ look, /** @type {string} */ walk) =>

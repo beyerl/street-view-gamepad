@@ -1,4 +1,4 @@
-import { defaultButtonMap } from "./actions.js";
+import { defaultButtonMap, normalizeButtonMap } from "./actions.js";
 
 export const LogLevel = Object.freeze({ OFF: "off", INFO: "info", DEBUG: "debug" });
 const LOG_RANK = { [LogLevel.OFF]: 0, [LogLevel.INFO]: 1, [LogLevel.DEBUG]: 2 };
@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
 /** Stored settings completed with the defaults, including actions added since they were stored.
  * @param {Partial<Settings>} [stored] @returns {Settings} */
 export function withDefaults(stored = {}) {
-  return { ...DEFAULT_SETTINGS, ...stored, buttonMap: { ...DEFAULT_SETTINGS.buttonMap, ...stored.buttonMap } };
+  return { ...DEFAULT_SETTINGS, ...stored, buttonMap: normalizeButtonMap(stored.buttonMap) };
 }
 
 /** Effective 0-1 volumes: each slider scaled by the master volume.

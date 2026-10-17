@@ -3,63 +3,72 @@
 Chrome extension (Manifest V3) that lets you control Google Street View — and the normal Google
 Maps map — with a gamepad.
 
-| Gamepad | Street View                                                      | Map               |
-| ------- | ---------------------------------------------------------------- | ----------------- |
-| Y / A   | walk forward / backward (jumps to unconnected points, see below) | pan north / south |
-| X       | switch mode (see below)                                          | same              |
-| B       | action of the current mode                                       | same              |
-| D-pad   | look around / turn                                               | pan               |
-| LB / RB | zoom out / in                                                    | zoom out / in     |
-| Start   | toggle fullscreen (browser window)                               | same              |
-| Select  | hide/show search bar + title card                                | same              |
+The key mapping window offers two presets, **Xbox Classic** (the default) and **SNES**. Face
+buttons are named by position as on an Xbox pad: Y top, B right, A bottom, X left.
 
-Holding a button repeats its action.
+| Action                  | Xbox Classic | SNES   | Street View                                                      | Map               |
+| ----------------------- | ------------ | ------ | ---------------------------------------------------------------- | ----------------- |
+| Walk forward / backward | Y / A        | Y / A  | walk forward / backward (jumps to unconnected points, see below) | pan north / south |
+| Step left / right       | X / B        | —      | jump to the nearest panorama 90° to the left / right (±40°)      | —                 |
+| Look around             | left stick   | D-pad  | look around / turn                                               | pan               |
+| Zoom in / out           | LT / RT      | X / B  | zoom in / out                                                    | zoom in / out     |
+| Select mode             | D-pad left   | Select | switch to the next mode (see below)                              | same              |
+| Mode button 1           | D-pad up     | Start  | what the current mode says                                       | same              |
+| Mode button 2           | D-pad right  | L      | what the current mode says                                       | same              |
+| Mode button 3           | D-pad down   | R      | what the current mode says                                       | same              |
 
-These actions have no button by default; assign them in the key mapping window (see _Settings_):
+Holding walk or zoom repeats it. Stepping keeps the view direction and works in Street View
+only.
 
-| Action                            | What it does                                                                                                                                                            |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Step left / right                 | jump to the nearest panorama 90° to the left / right of the view (±40°), keeping the view direction (Street View only)                                                  |
-| One floor down                    | the opposite of B in floors mode; from the bottom floor it goes to the top one                                                                                          |
-| Enlarge / shrink minimap          | clicks the button that enlarges Street View's minimap, or shrinks it again                                                                                              |
-| Zoom minimap in / out             | scrolls the wheel over the minimap; repeats while held                                                                                                                  |
-| Browser back / forward            | the browser's history                                                                                                                                                   |
-| Next / previous Wikipedia article | goes through the (up to ten) articles nearby, wrapping around; a playing commentary switches to the new article. Outside commentary mode it first switches to that mode |
+| Mode         | Mode button 1     | Mode button 2          | Mode button 3      |
+| ------------ | ----------------- | ---------------------- | ------------------ |
+| 1 Multilayer | one floor up      | —                      | one floor down     |
+| 2 Wikiaudio  | play / pause      | next article           | previous article   |
+| 3 Browser    | toggle fullscreen | hide / show search bar | browser back       |
+| 4 Minimap    | enlarge / shrink  | zoom in (repeats)      | zoom out (repeats) |
+
+Floors wrap around: up from the top floor goes to the bottom one and down from the bottom to the
+top. Next / previous article goes through the (up to ten) articles nearby, wrapping around; a
+playing commentary switches to the new article. The minimap is enlarged and shrunk with its own
+button and zoomed with the mouse wheel over it.
 
 The minimap is found by its shape (a map canvas other than the scene, in the lower left) and its
 enlarge button by its label (_Expand_, _Vergrößern_, …), or else as the button in its upper right
 corner. Like the floor picker, this may stop working if Google changes its page; set the log level
 to _Debug_ to see which buttons were found.
 
-In Street View, buttons are sent as arrow and `+`/`-` keys and the D-pad as a mouse drag. The map
+In Street View, buttons are sent as arrow and `+`/`-` keys and looking as a mouse drag. The map
 ignores synthetic key presses until a real key has been pressed on the page, so there the
 extension pans with a simulated mouse drag and zooms with mouse-wheel events instead.
 
 ## Modes
 
-The lower right corner shows the modes as icons, the current one highlighted with a short label.
+Select mode cycles through four modes; the three mode buttons do what the current one says (see
+the table above). The lower right corner shows the modes as icons, the current one highlighted with a short label.
 The box is placed next to Google's own controls there (zoom, compass, floor picker,
 attribution), never on top of them. It only shows while a gamepad is connected. The current
 mode is remembered for the tab.
 
-- **Floors** (layers icon): in places with several mapped floors, such as Tokyo Station, B goes
-  one floor up, and from the top floor back to the bottom one. The icon is blue when there is a
+- **Multilayer** (layers icon): in places with several mapped floors, such as Tokyo Station,
+  mode buttons 1 and 3 go one floor up and down. The icon is blue when there is a
   floor picker and gray otherwise; the label shows the current floor. Google's markup is
   obfuscated, so the picker is recognised by its shape: a vertical column of short labels like
   `B1`, `1`, `2F` in the right half of the screen. If Google changes it, this may stop working.
   Set the log level to _Debug_ to see what was found.
-- **Audio commentary** (speaker icon): the icon turns orange when there is a Wikipedia article
-  about a place within 500 m, and the label shows its title. B plays it, pauses it and resumes
-  it. Nothing plays automatically. When several articles are nearby, the label numbers them
-  (_Title (2/5)_) and the _next / previous article_ actions switch between them. If the article has a [Spoken
+- **Wikiaudio** (speaker icon): the icon turns orange when there is a Wikipedia article
+  about a place within 500 m, and the label shows its title. Mode button 1 plays it, pauses it
+  and resumes it. Nothing plays automatically. When several articles are nearby, the label numbers them
+  (_Title (2/5)_) and mode buttons 2 and 3 switch between them. If the article has a [Spoken
   Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:WikiProject_Spoken_Wikipedia) recording,
   you hear that person reading it. Otherwise a built-in voice reads the article's
   introduction (see _Text-to-speech_). Articles come from English Wikipedia, or else from the
   Wikipedia in your browser's language. Among the closest ten, longer articles win over slightly nearer ones, so the
   Brandenburg Gate beats the office next door. The ambient sound gets quieter while the
   commentary plays. A commentary keeps playing when you walk on or jump, and pauses when you
-  switch tabs. If you've moved on to another article, B starts that one instead of resuming
-  the old one.
+  switch tabs. If you've moved on to another article, mode button 1 starts that one instead of
+  resuming the old one.
+- **Browser** (tab icon): fullscreen, the search bar and title card, and the browser's history.
+- **Minimap** (map icon): the Street View minimap's size and zoom.
 
 ## Unconnected panoramas
 
@@ -69,11 +78,11 @@ changes, the extension looks up the nearest panorama, Google's or user-contribut
 of the view direction, up to ~2 km ahead, and shows _"Next jump point xx m"_ centred at the
 bottom of the screen (or _"No jump point in this direction"_).
 
-If the panorama hasn't changed about a second after you press Y, the extension goes straight
-to that point, without asking. A (backward) does the same for the opposite direction, searching
+If the panorama hasn't changed about a second after you press forward, the extension goes straight
+to that point, without asking. Backward does the same for the opposite direction, searching
 on demand. If nothing is found, a short message says so.
 
-Holding Y walks normally and starts the search once you reach a dead end. A jump loads the
+Holding forward walks normally and starts the search once you reach a dead end. A jump loads the
 new panorama's URL, so the page reloads, which takes a moment. The search uses the same
 unofficial endpoint the Maps web app uses (`/maps/photometa/si/v1`), so it may break if Google
 changes it. Distances and angles are constants (`JUMP_*`) in `src/shared/config.js`.
@@ -111,9 +120,9 @@ no voices at all.
   downloaded from Hugging Face (`rhasspy/piper-voices`) the first time it's needed, together with
   espeak-ng's pronunciation data (~18 MB, jsDelivr). After that they come from the browser's cache,
   so it works offline. A message on screen shows the download progress.
-- The voice loads as soon as commentary mode finds an article without a recording, so pressing B
-  only waits for the first sentence (a few seconds). After that, sentences are synthesized while
-  the previous one plays.
+- The voice loads as soon as Wikiaudio mode finds an article without a recording, so pressing
+  play only waits for the first sentence (a few seconds). After that, sentences are synthesized
+  while the previous one plays.
 - These are the "low" quality voices. On a 2012 dual-core laptop (Pentium B960) they synthesize at
   about 0.7× real time. The "medium" ones need ~1.15× and would stutter. Voices are listed in
   `VOICES` in `src/infrastructure/audio/piper-synthesizer.js`.
@@ -142,34 +151,37 @@ running) and reload the extension.
 
 Click the extension's toolbar icon to open the settings panel:
 
-- **Horizontal / vertical look speed** – D-pad look speed per axis (px/s of simulated mouse drag; defaults 720 / 480).
+- **Horizontal / vertical look speed** – look speed per axis (px/s of simulated mouse drag; defaults 720 / 480).
 - **Ambient sound** on/off.
 - **Master volume** scales the **soundscape volume** (ambient recordings) and the **commentary
   volume** (spoken articles). Changes apply immediately.
 - **Configure gamepad keys…** opens a window that walks through every action ("Press a button
   for …", like Recalbox's input configuration) so you can reassign buttons. Enter skips an
   action, Esc cancels, and clicking an action remaps just that one. A button belongs to one
-  action only; assigning it elsewhere unassigns it. The table at the top shows the defaults.
+  action only; assigning it elsewhere unassigns it. The _Controller_ dropdown replaces the
+  mapping with the Xbox Classic or SNES preset, and shows _Custom_ once it was changed. Below,
+  a table lists what the mode buttons do in each mode. Mappings saved before version 1.10 are
+  replaced by the Xbox Classic preset, because most of their actions are now mode buttons.
   Sticks and other axes can be assigned too, e.g. a Joy-Con's stick: moving an axis more than
   halfway from where it rested when configuring started assigns that direction (_Axis 1 −_),
   and the action is active while the axis is past halfway. Axes that rest at −1, like analogue
   triggers on some pads, count from there. A hat switch, which some systems report for a single
   Joy-Con's stick as one axis resting outside −1…1, is assigned per position
   (_Axis 9 = −1.00_).
-- **Console log level** – `Off`, `Info` (gamepad connect/disconnect, Select toggles; default) or `Debug` (every button change).
+- **Console log level** – `Off`, `Info` (gamepad connect/disconnect, mode switches and toggles; default) or `Debug` (every button change).
 
 Changes apply immediately to open Google Maps tabs.
 
 ## Notes
 
-- Commentary uses the public Wikipedia and Wikimedia Commons APIs, looked up only in audio
-  commentary mode and after moving 50 m. Spoken Wikipedia recordings and Wikipedia text are
+- Commentary uses the public Wikipedia and Wikimedia Commons APIs, looked up only in Wikiaudio
+  mode and after moving 50 m. Spoken Wikipedia recordings and Wikipedia text are
   CC BY-SA.
 - Active on all Google Maps pages (Street View and the normal map) while the tab is visible.
-- The search bar hidden with Select stays hidden across page reloads in the same tab.
+- The search bar hidden in browser mode stays hidden across page reloads in the same tab.
 - Key repeat rates and all other tunables are constants in `src/shared/config.js`.
 - Gamepad input doesn't count as a user gesture, so the page can't call `requestFullscreen()`.
-  Instead, Start asks the background worker to put the browser window into fullscreen.
+  Instead, the fullscreen button asks the background worker to put the browser window into fullscreen.
 - Add more Google domains to `matches` in `manifest.json` if you use a different one.
 
 ## Development
@@ -213,9 +225,11 @@ src/
 
 - **Dependency injection**: services get their collaborators as constructor arguments; the
   composition roots in `src/entry/` create the real ones, tests pass fakes.
-- **Actions** are listed once, in `src/domain/actions.js` (id, label, kind, default button). The
-  key mapping window, the defaults and the input controller all read that list. A new action
-  needs an entry there and a command in `src/entry/page.js`.
+- **Actions** are listed once, in `src/domain/actions.js` (id, label, kind), with the presets.
+  The key mapping window and the input controller read that list. A new action needs an entry
+  there, a binding in each preset and a command in `src/entry/page.js`. What the mode buttons
+  do per mode is the table in `src/domain/mode.js`; a new mode command needs an entry there and
+  a command in `src/entry/page.js`.
 - **Street View vs. map** controls are two strategies (`StreetViewControls`, `MapControls`).
 - **Commentary playback** is a state machine (`Stopped`, `Playing`, `Paused`).
 - The page's UI elements are custom elements with Shadow DOM, so Google's styles can't reach

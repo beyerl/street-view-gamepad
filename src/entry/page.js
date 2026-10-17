@@ -5,7 +5,7 @@
 
 import { Action } from "../domain/actions.js";
 import { LevelStep } from "../domain/levels.js";
-import { Mode } from "../domain/mode.js";
+import { ModeCommand } from "../domain/mode.js";
 import { MapsUrl } from "../domain/maps-url.js";
 import { withDefaults } from "../domain/settings.js";
 import { AmbientReporter } from "../application/ambient-reporter.js";
@@ -84,20 +84,22 @@ export function startPage(g) {
   const ambient = new AmbientReporter({ bus, navigator, settings, isHidden });
   modes.onChange(renderHud);
 
-  /** What each press action does. */
+  /** What each press action and each mode command does. */
   const commands = {
     [Action.MODE]: () => modes.next(),
-    [Action.MODE_ACTION]: () => (modes.mode === Mode.COMMENTARY ? commentary.toggle() : levels.switch(LevelStep.UP)),
-    [Action.FULLSCREEN]: () => bus.post(Msg.TOGGLE_FULLSCREEN),
-    [Action.OVERLAY]: () => overlay.toggle(),
     [Action.STRAFE_LEFT]: () => jump.strafe(Turn.LEFT),
     [Action.STRAFE_RIGHT]: () => jump.strafe(Turn.RIGHT),
-    [Action.LEVEL_DOWN]: () => levels.switch(LevelStep.DOWN),
-    [Action.MINIMAP_TOGGLE]: () => minimap.toggle(),
-    [Action.HISTORY_BACK]: () => navigator.back(),
-    [Action.HISTORY_FORWARD]: () => navigator.forward(),
-    [Action.ARTICLE_NEXT]: () => commentary.next(1),
-    [Action.ARTICLE_PREV]: () => commentary.next(-1),
+    [ModeCommand.LEVEL_UP]: () => levels.switch(LevelStep.UP),
+    [ModeCommand.LEVEL_DOWN]: () => levels.switch(LevelStep.DOWN),
+    [ModeCommand.PLAY_PAUSE]: () => commentary.toggle(),
+    [ModeCommand.ARTICLE_NEXT]: () => commentary.next(1),
+    [ModeCommand.ARTICLE_PREV]: () => commentary.next(-1),
+    [ModeCommand.FULLSCREEN]: () => bus.post(Msg.TOGGLE_FULLSCREEN),
+    [ModeCommand.OVERLAY]: () => overlay.toggle(),
+    [ModeCommand.HISTORY_BACK]: () => navigator.back(),
+    [ModeCommand.MINIMAP_TOGGLE]: () => minimap.toggle(),
+    [ModeCommand.MINIMAP_ZOOM_IN]: () => minimap.zoom(1),
+    [ModeCommand.MINIMAP_ZOOM_OUT]: () => minimap.zoom(-1),
   };
 
   const scene = new SceneInput({ dom, document, window, events });
@@ -107,10 +109,11 @@ export function startPage(g) {
     settings,
     isHidden,
     isStreetView,
-    streetView: new StreetViewControls(scene, look, dom),
+    streetView: new StreetViewControls(scene, look),
     map: new MapControls(scene, look),
     jump,
     commands,
+    mode: () => modes.mode,
     now: () => scheduler.now(),
     log,
   });
