@@ -30,6 +30,36 @@ export function bindingLabel(binding) {
   return "?";
 }
 
+// Buttons of the Standard Gamepad mapping by their Xbox names; face buttons go
+// by position (see actions.js), so these fit an SNES pad too, but for L and R.
+const BUTTON_NAMES = Object.freeze([
+  "A",
+  "B",
+  "X",
+  "Y",
+  "LB",
+  "RB",
+  "LT",
+  "RT",
+  "Select",
+  "Start",
+  "L3",
+  "R3",
+  "D-pad ↑",
+  "D-pad ↓",
+  "D-pad ←",
+  "D-pad →",
+  "Home",
+]);
+const SNES_NAMES = Object.freeze({ 4: "L", 5: "R" });
+
+/** What the pad calls a binding, as the HUD shows it.
+ * @param {import("./actions.js").BindingValue} binding @param {string | null} [presetId] */
+export function buttonName(binding, presetId) {
+  if (typeof binding !== "number") return bindingLabel(binding);
+  return (presetId === "snes" && SNES_NAMES[binding]) || BUTTON_NAMES[binding] || bindingLabel(binding);
+}
+
 /**
  * Turns what is pressed on gamepads into bindings, for assigning them. Axes
  * count from where they rested when detection started (triggers on some pads

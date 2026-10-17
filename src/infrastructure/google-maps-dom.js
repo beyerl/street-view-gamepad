@@ -10,6 +10,8 @@ const LEVEL_SEL = 'button, [role="button"], [role="radio"], [role="option"], [ro
 const SELECTED_ATTRS = ["aria-checked", "aria-pressed", "aria-selected"];
 const MINIMAP_SIZE_RE =
   /minimap|(show|hide) (the )?map|karte (anzeigen|ausblenden|einblenden)|expand|collapse|enlarge|shrink|maximi|minimi|vergr|verklein|erweiter|einklapp|ausklapp|agrandir|réduire|ampliar|reducir/i;
+// Maps' own handler names, unlike its class names, say what an element is for.
+const MINIMAP_SEL = '[jsaction*="wheel:minimap"]';
 const LABEL_ATTRS = ["aria-label", "title", "data-tooltip"];
 const COLUMN_TOLERANCE = 8; // px the centres of a floor picker's buttons may differ
 const OVERLAY_DEPTH = 6; // how deep to look for top-left panels
@@ -146,11 +148,18 @@ export class GoogleMapsDom extends MapsPage {
   }
 
   // --- Minimap ------------------------------------------------------------------
-  // A map canvas other than the scene, reaching into the lower left quarter.
-  // The scene can have more than one full-window canvas, so big ones don't
-  // count: scrolling those would zoom the scene instead of the minimap.
+  // Maps draws the minimap into the scene's own canvas and lays an empty
+  // element over it that takes its mouse and wheel events: that one, found by
+  // its wheel handler. Else, as on older pages, a map canvas other than the
+  // scene reaching into the lower left quarter. The scene can have more than
+  // one full-window canvas, so big ones don't count: scrolling those would
+  // zoom the scene instead of the minimap.
 
   minimap() {
+    for (const el of this.document.querySelectorAll(MINIMAP_SEL)) {
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height && this.visible(el)) return el;
+    }
     const W = this.window.innerWidth;
     const H = this.window.innerHeight;
     const scene = this.sceneCanvas();

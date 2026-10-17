@@ -161,6 +161,15 @@ test("the minimap is a canvas other than the scene in the lower left", () => {
   assert.equal(env.dom.minimap(), null);
 });
 
+test("the minimap is the element taking its wheel events, drawn in the scene's canvas (#25)", () => {
+  const env = minimapSetup();
+  const layer = setRect(env.el("div"), 20, 690, 220, 100);
+  layer.setAttribute("jsaction", "minimap.main; wheel:minimap.zoom; mousewheel:minimap.zoom");
+  assert.equal(env.dom.minimap(), layer);
+  setRect(layer, 0, 0, 0, 0); // not shown: the canvas search
+  assert.equal(env.dom.minimap(), env.map);
+});
+
 test("a second full-window canvas of the scene is not the minimap", () => {
   const env = minimapSetup();
   const layer = setRect(env.el("canvas"), 0, 0, 1000, 800);
