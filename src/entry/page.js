@@ -52,6 +52,7 @@ export function startPage(g) {
       now: () => g.performance.now(),
     },
     config.TICK_INTERVAL,
+    (e) => g.console.error("[Street View Gamepad]", e),
   );
   const store = new SessionStore(() => g.sessionStorage);
   const navigator = new LocationNavigator(g.location, g.history);

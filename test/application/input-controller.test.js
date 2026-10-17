@@ -55,6 +55,20 @@ function setup({ buttonMap = {}, streetView = true } = {}) {
   return { c, state, sv, map, jump, commands, log, tick, press: (...b) => (state.pads = [pad(b)]) };
 }
 
+test("a press action that throws still runs only once per press", () => {
+  const env = setup();
+  let runs = 0;
+  env.commands.mode = () => {
+    runs++;
+    throw new Error("boom");
+  };
+  env.press(B.mode);
+  assert.throws(() => env.tick());
+  env.tick();
+  env.tick();
+  assert.equal(runs, 1);
+});
+
 test("a held action presses on, repeats after a delay, and releases", () => {
   const env = setup();
   env.press(B.forward);

@@ -5,6 +5,10 @@
 // customElements is null in Chrome's isolated content-script world, so these
 // are defined by the page script (MAIN world). Defined through a function so
 // tests can pass a window with stand-ins for HTMLElement and customElements.
+//
+// The constructors must not set attributes (not even `hidden`): Chrome then
+// rejects the element created by document.createElement and hands back a
+// plain HTMLUnknownElement instead, so nothing would show.
 
 export const Tag = Object.freeze({ HUD: "svgp-hud", TOAST: "svgp-toast", HINT: "svgp-hint" });
 
@@ -51,7 +55,6 @@ export function defineComponents(win) {
       const root = this.attachShadow({ mode: "open" });
       root.innerHTML = `<style>${css}</style><div part="text"></div>`;
       this.textEl = root.lastElementChild;
-      this.hidden = true;
     }
     /** @param {string} text */
     set text(text) {
@@ -82,7 +85,6 @@ export function defineComponents(win) {
       this.root.innerHTML = `<style>${HUD_CSS}</style>`;
       /** @type {Map<string, Element>} */
       this.chips = new Map();
-      this.hidden = true;
     }
 
     /** @param {import("./hud-model.js").Chip[]} chips */

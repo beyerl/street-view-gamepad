@@ -7,9 +7,10 @@ import { Toast } from "../ports/index.js";
 import { Tag } from "./components.js";
 import { hudChips, placeBox } from "./hud-model.js";
 
-/** @param {Document} document @param {string} tag */
+/** Hidden until shown. @param {Document} document @param {string} tag */
 function createElement(document, tag) {
   const el = /** @type {any} */ (document.createElement(tag));
+  el.hidden = true;
   return el;
 }
 

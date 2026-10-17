@@ -161,6 +161,13 @@ test("the minimap is a canvas other than the scene in the lower left", () => {
   assert.equal(env.dom.minimap(), null);
 });
 
+test("a second full-window canvas of the scene is not the minimap", () => {
+  const env = minimapSetup();
+  const layer = setRect(env.el("canvas"), 0, 0, 1000, 800);
+  env.document.body.insertBefore(layer, env.map);
+  assert.equal(env.dom.minimap(), env.map);
+});
+
 test("the minimap's size button: by label first, else the one in its upper right corner", () => {
   const env = minimapSetup();
   const corner = setRect(env.el("button"), 185, 602, 20, 20);

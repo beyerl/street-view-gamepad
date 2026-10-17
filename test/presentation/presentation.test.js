@@ -62,7 +62,6 @@ test("components live in Shadow DOM: toast and hint show text, the HUD renders c
   const toast = document.createElement(Tag.TOAST);
   toast.text = "Hello <b>";
   assert.equal(toast.text, "Hello <b>");
-  assert.equal(toast.hidden, true);
   assert.match(toast.shadowRoot.querySelector("style").textContent, /translate\(-50%, -50%\)/);
   const hud = document.createElement(Tag.HUD);
   hud.render(hudChips({ mode: "commentary", floor: null, commentary: c({ status: "playing", playingTitle: "Tor" }) }));
@@ -73,6 +72,14 @@ test("components live in Shadow DOM: toast and hint show text, the HUD renders c
   assert.equal(chip.querySelector("span").textContent, "Tor");
   assert.ok(chip.querySelector("svg"));
   assert.equal(document.body.querySelector(".m"), null); // nothing leaks into the page
+});
+
+test("components set no attributes when constructed, or Chrome rejects them; views start hidden", () => {
+  const { document } = page();
+  for (const tag of Object.values(Tag)) assert.equal(document.createElement(tag).hasAttributes(), false, tag);
+  const scheduler = fakeScheduler();
+  assert.equal(new ToastView(document, scheduler).el.hidden, true);
+  assert.equal(new HintView(document).el.hidden, true);
 });
 
 test("toast view: shows, hides after a while, a new message replaces the timer", () => {
