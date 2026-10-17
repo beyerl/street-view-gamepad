@@ -1,11 +1,14 @@
 // What the mode display shows, and where it goes. Pure: no DOM.
 
-import { Mode, MODE_TABLE, MODES } from "../domain/mode.js";
+import { MODE_BUTTONS, presetOf } from "../domain/actions.js";
+import { buttonName } from "../domain/binding.js";
+import { COMMAND_LABELS, Mode, MODE_TABLE, MODES, modeCommand } from "../domain/mode.js";
 import { PlaybackStatus } from "../domain/commentary-state.js";
 
 /**
  * @typedef {{ available: boolean, title: string, status: string, playingTitle: string, loading?: boolean, index: number, count: number }} CommentaryView
  * @typedef {{ id: string, active: boolean, on: boolean, playing: boolean, loading: boolean, label: string }} Chip
+ * @typedef {{ button: string, label: string }} SummaryLine
  */
 
 /** @param {{ mode: string, floor: string | null, commentary: CommentaryView }} s floor: the current floor's label, "" if unknown, null if no picker
@@ -38,6 +41,19 @@ export function hudChips({ mode, floor, commentary: c }) {
     [Mode.MINIMAP]: { on: true, playing: false, loading: false, label: MODE_TABLE[Mode.MINIMAP].name },
   };
   return MODES.map((id) => ({ id, active: id === mode, ...chips[id] }));
+}
+
+/** What the mode buttons do in `mode`, each by the name of its button on the pad.
+ * @param {string} mode @param {Record<string, import("../domain/actions.js").BindingValue>} buttonMap
+ * @returns {SummaryLine[]} */
+export function hudSummary(mode, buttonMap) {
+  const preset = presetOf(buttonMap);
+  return MODE_BUTTONS.flatMap((action, i) => {
+    const command = modeCommand(mode, i);
+    const binding = buttonMap[action] ?? null;
+    if (!command || binding === null) return [];
+    return [{ button: buttonName(binding, preset), label: COMMAND_LABELS[command] }];
+  });
 }
 
 /**

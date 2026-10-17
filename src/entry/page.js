@@ -77,7 +77,12 @@ export function startPage(g) {
   const panoramas = new PhotometaPanoramaRepository((url) => g.fetch(url));
   const jump = new JumpService({ panoramas, navigator, routes, scheduler, toast, hint, log });
   const renderHud = () =>
-    hud.render(input.pads().length > 0, { mode: modes.mode, floor: levels.floor(), commentary: commentary.state });
+    hud.render(input.pads().length > 0, {
+      mode: modes.mode,
+      floor: levels.floor(),
+      commentary: commentary.state,
+      buttonMap: settings.buttonMap,
+    });
   const levels = new LevelService({ page: dom, toast, scheduler, onSwitched: renderHud, log });
   const minimap = new MinimapService(dom, toast);
   const commentary = new CommentaryClient({ bus, navigator, modes, toast, isHidden, onChange: renderHud });

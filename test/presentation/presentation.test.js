@@ -1,6 +1,7 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { hudChips, placeBox } from "../../src/presentation/hud-model.js";
+import { hudChips, hudSummary, placeBox } from "../../src/presentation/hud-model.js";
+import { presetButtonMap } from "../../src/domain/actions.js";
 import { defineComponents, Tag } from "../../src/presentation/components.js";
 import { HintView, HudView, ToastView } from "../../src/presentation/views.js";
 import { defineSettingsComponents, ROW_SELECT, SETTING_CHANGE } from "../../src/presentation/settings-components.js";
@@ -46,6 +47,23 @@ test("chips: the active mode, floors, and every commentary state", () => {
   assert.equal(label({ status: "paused", playingTitle: "Tor" }).label, "⏸ Tor");
 });
 
+test("summary: what the mode buttons do, by the names of their buttons (#26)", () => {
+  assert.deepEqual(hudSummary("minimap", presetButtonMap("xbox")), [
+    { button: "D-pad ↑", label: "Enlarge / shrink" },
+    { button: "D-pad →", label: "Zoom in" },
+    { button: "D-pad ↓", label: "Zoom out" },
+  ]);
+  assert.deepEqual(hudSummary("commentary", presetButtonMap("snes")), [
+    { button: "Start", label: "Play / pause" },
+    { button: "L", label: "Previous article" },
+    { button: "R", label: "Next article" },
+  ]);
+  // Mode button 2 does nothing on floors; an unassigned one isn't listed; axes by their label.
+  const custom = { ...presetButtonMap("xbox"), mode1: "a9=-1.00", mode3: null };
+  assert.deepEqual(hudSummary("levels", custom), [{ button: "Axis 9 = -1.00", label: "One floor up" }]);
+  assert.equal(hudSummary("levels", { ...presetButtonMap("snes"), mode1: 4 })[0].button, "LB"); // custom: Xbox names
+});
+
 test("placement: in the corner, else beside or above Maps' controls", () => {
   const vp = { width: 1000, height: 800 };
   const box = { width: 100, height: 40 };
@@ -85,6 +103,16 @@ test("components live in Shadow DOM: toast and hint show text, the HUD renders c
   assert.equal(chip.className, "m active on loading");
   assert.ok(chip.querySelector("i"));
   assert.match(hud.shadowRoot.querySelector("style").textContent, /\.m\.loading i \{ display: block/);
+  assert.equal(hud.shadowRoot.querySelector(".sum").childElementCount, 0);
+  const summary = [{ button: "D-pad ↑", label: "Play / pause" }];
+  hud.render(hudChips({ mode: "commentary", floor: null, commentary: spinning }), summary);
+  const sum = hud.shadowRoot.querySelector(".sum");
+  assert.deepEqual(
+    [...sum.children].map((e) => `${e.tagName} ${e.textContent}`),
+    ["KBD D-pad ↑", "EM Play / pause"],
+  );
+  hud.render(hudChips({ mode: "commentary", floor: null, commentary: spinning }), [...summary]);
+  assert.equal(sum.firstElementChild.textContent, "D-pad ↑"); // unchanged: kept
   assert.equal(document.body.querySelector(".m"), null); // nothing leaks into the page
 });
 
@@ -127,12 +155,13 @@ test("HUD view: only with a gamepad; placed clear of obstacles", () => {
   const { document, window } = page();
   const obstacles = [];
   const hud = new HudView(document, window, { obstacles: () => obstacles });
-  const state = { mode: "levels", floor: null, commentary: c() };
+  const state = { mode: "levels", floor: null, commentary: c(), buttonMap: presetButtonMap("xbox") };
   hud.render(false, state);
   assert.equal(hud.el.isConnected, false);
   hud.place(); // hidden: nothing
   hud.render(true, state);
   assert.equal(hud.el.hidden, false);
+  assert.equal(hud.el.shadowRoot.querySelector(".sum").textContent, "D-pad ↑One floor upD-pad ↓One floor down");
   setRect(hud.el, 0, 0, 100, 40);
   obstacles.push({ left: 940, top: 650, right: 980, bottom: 790 });
   hud.place();

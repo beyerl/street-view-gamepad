@@ -99,6 +99,7 @@ test("forward in Street View presses ArrowUp on the scene; the HUD shows with a 
   const hud = env.document.querySelector("svgp-hud");
   assert.equal(hud.hidden, false);
   assert.equal(hud.chip("levels").classList.contains("active"), true);
+  assert.match(hud.shadowRoot.querySelector(".sum").textContent, /^D-pad ↑One floor up/);
 });
 
 test("the mode select button switches mode, remembered for the tab, and looks up commentary", () => {

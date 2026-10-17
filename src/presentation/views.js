@@ -5,7 +5,7 @@
 import { HUD_MARGIN } from "../shared/config.js";
 import { Toast } from "../ports/index.js";
 import { Tag } from "./components.js";
-import { hudChips, placeBox } from "./hud-model.js";
+import { hudChips, hudSummary, placeBox } from "./hud-model.js";
 
 /** Hidden until shown. @param {Document} document @param {string} tag */
 function createElement(document, tag) {
@@ -74,12 +74,12 @@ export class HudView {
     this.el.style.right = this.el.style.bottom = `${HUD_MARGIN}px`;
   }
 
-  /** @param {boolean} show @param {Parameters<typeof hudChips>[0]} [state] */
+  /** @param {boolean} show @param {Parameters<typeof hudChips>[0] & { buttonMap: Parameters<typeof hudSummary>[1] }} [state] */
   render(show, state) {
     this.el.hidden = !show;
     if (!show || !state) return;
     ensureAttached(this.document, this.el);
-    this.el.render(hudChips(state));
+    this.el.render(hudChips(state), hudSummary(state.mode, state.buttonMap));
   }
 
   place() {

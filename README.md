@@ -43,9 +43,10 @@ top. Next / previous article goes through the (up to ten) articles nearby, wrapp
 playing commentary switches to the new article. The minimap is enlarged and shrunk with its own
 button and zoomed with the mouse wheel over it.
 
-The minimap is found by its shape (a map canvas other than the scene, in the lower left) and its
-enlarge button by its label (_Expand_, _Vergrößern_, …), or else as the button in its upper right
-corner. Like the floor picker, this may stop working if Google changes its page; set the log level
+Maps draws the minimap into the scene's own canvas, under an element that takes its mouse and wheel
+events; the extension finds that element by Maps' handler name for zooming the minimap (or, on
+older pages, as a map canvas other than the scene in the lower left). Its enlarge button is found by
+its label (_Expand_, _Maximieren_, …), or else as the button in its upper right corner. Like the floor picker, this may stop working if Google changes its page; set the log level
 to _Debug_ to see which buttons were found.
 
 In Street View, buttons are sent as arrow and `+`/`-` keys and looking as a mouse drag. The map
@@ -56,6 +57,8 @@ extension pans with a simulated mouse drag and zooms with mouse-wheel events ins
 
 Select mode cycles through four modes; the three mode buttons do what the current one says (see
 the table above). The lower right corner shows the modes as icons, the current one highlighted with a short label.
+Above them, a short summary lists what the mode buttons do in the current mode, each by the name of
+its button on the pad (_D-pad ↑ Play / pause_, or _Start_, _L_, _R_ with the SNES preset).
 The box is placed next to Google's own controls there (zoom, compass, floor picker,
 attribution), never on top of them. It only shows while a gamepad is connected. The current
 mode is remembered for the tab.

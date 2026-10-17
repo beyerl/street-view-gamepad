@@ -36,9 +36,16 @@ const HINT_CSS = `:host { position: fixed; left: 50%; bottom: 40px; transform: t
   font: 15px/1.4 system-ui, sans-serif; white-space: nowrap; }
 :host([hidden]) { display: none; }`;
 
-const HUD_CSS = `:host { position: fixed; z-index: ${TOP - 1}; display: flex; gap: 4px; padding: 4px; border-radius: 10px;
-  pointer-events: none; background: rgba(20, 20, 20, .78); font: 13px/1 system-ui, sans-serif; color: #fff; }
+const HUD_CSS = `:host { position: fixed; z-index: ${TOP - 1}; display: flex; flex-direction: column; gap: 4px; padding: 4px;
+  border-radius: 10px; pointer-events: none; background: rgba(20, 20, 20, .78); font: 13px/1 system-ui, sans-serif;
+  color: #fff; }
 :host([hidden]) { display: none; }
+.sum { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 4px 8px; padding: 5px 7px 3px;
+  font-size: 12px; }
+.sum:empty { display: none; }
+kbd { font: inherit; font-weight: 600; color: #bdc1c6; white-space: nowrap; }
+em { font-style: normal; white-space: nowrap; }
+.row { display: flex; gap: 4px; }
 .m { display: flex; align-items: center; gap: 6px; padding: 5px 7px; border-radius: 7px; color: #80868b; opacity: .6; }
 .m.active { opacity: 1; background: rgba(255, 255, 255, .16); }
 .m.on[data-mode=levels] { color: #4fc3f7; }
@@ -88,18 +95,36 @@ export function defineComponents(win) {
   }
 
   /** The modes, as icons, the current one highlighted with a label. A
-   * spinner next to the icon while the commentary is loading. */
+   * spinner next to the icon while the commentary is loading. Above them,
+   * what the mode buttons do in the current mode. */
   class Hud extends win.HTMLElement {
     constructor() {
       super();
       this.root = this.attachShadow({ mode: "open" });
-      this.root.innerHTML = `<style>${HUD_CSS}</style>`;
+      this.root.innerHTML = `<style>${HUD_CSS}</style><div class="sum"></div><div class="row"></div>`;
+      this.summaryEl = this.root.querySelector(".sum");
+      this.row = this.root.querySelector(".row");
       /** @type {Map<string, Element>} */
       this.chips = new Map();
+      this.summaryKey = "";
     }
 
-    /** @param {import("./hud-model.js").Chip[]} chips */
-    render(chips) {
+    /** @param {import("./hud-model.js").Chip[]} chips @param {import("./hud-model.js").SummaryLine[]} [summary] */
+    render(chips, summary = []) {
+      const key = JSON.stringify(summary);
+      if (key !== this.summaryKey) {
+        this.summaryKey = key;
+        const doc = this.root.ownerDocument;
+        this.summaryEl.replaceChildren(
+          ...summary.flatMap(({ button, label }) => {
+            const kbd = doc.createElement("kbd");
+            kbd.textContent = button;
+            const em = doc.createElement("em");
+            em.textContent = label;
+            return [kbd, em];
+          }),
+        );
+      }
       for (const c of chips) {
         let el = this.chips.get(c.id);
         if (!el) {
@@ -107,7 +132,7 @@ export function defineComponents(win) {
           el.className = "m";
           el.setAttribute("data-mode", c.id);
           el.innerHTML = `${ICONS[c.id] || ""}<i></i><span></span>`;
-          this.root.appendChild(el);
+          this.row.appendChild(el);
           this.chips.set(c.id, el);
         }
         el.classList.toggle("active", c.active);
