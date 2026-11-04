@@ -144,10 +144,60 @@ test("photometa: asks the endpoint around the point and parses the nearest panor
     id: "PANO2",
     lat: 52.5,
     lng: 13.4003,
+    level: null,
+    links: [],
   });
   const pb = decodeURIComponent(fetch.calls[0][0].split("pb=")[1]);
   assert.ok(fetch.calls[0][0].startsWith("/maps/photometa/si/v1?pb="));
   assert.match(pb, /!3d52\.5!4d13\.4!2d5!/);
+  assert.match(pb, /!1e10!/); // user photos too
+  await repo.nearest(new GeoPoint(52.5, 13.4), 8, { userPhotos: false });
+  const google = decodeURIComponent(fetch.calls[1][0].split("pb=")[1]);
+  assert.match(google, /!3m10!2m2!1sen!2sUS!9m1!1e2!11m4!1m3!1e2!2b1!3e2!4m6/);
+});
+
+test("photometa: the panorama's floor and its links, each with position and floor", async () => {
+  // Trimmed from a real answer at Tokyo Station.
+  const level = (ord, label) => [`id${ord}`, ord, [label, "en"], [label, "en"]];
+  const link = (id, lat, lng, l) => [[2, id], null, [[null, null, lat, lng], [-35.3], [17, 89, 359], l]];
+  const body = [
+    null,
+    [
+      [1],
+      [2, "HERE"],
+      null,
+      [],
+      null,
+      [
+        [[2], [[null, null, 35.6812, 139.7671], [-35.3]], null, []],
+        [
+          [1],
+          [[null, null, 35.6812, 139.7671], [-35.3], [17, 89, 359], level(1, "2")],
+          null,
+          [
+            [
+              link("A", 35.6813, 139.7671, level(1, "2")),
+              link("B", 35.6812, 139.7672, level(-1, "B1")),
+              link("C", 1, 2),
+            ],
+          ],
+        ],
+      ],
+    ],
+  ];
+  const repo = new PhotometaPanoramaRepository(async () => textResponse(`)]}'\n${JSON.stringify(body)}`));
+  assert.deepEqual(await repo.nearest(new GeoPoint(35.6812, 139.7671), 3), {
+    type: 2,
+    id: "HERE",
+    lat: 35.6812,
+    lng: 139.7671,
+    level: { ordinal: 1, label: "2" },
+    links: [
+      { type: 2, id: "A", lat: 35.6813, lng: 139.7671, level: { ordinal: 1, label: "2" } },
+      { type: 2, id: "B", lat: 35.6812, lng: 139.7672, level: { ordinal: -1, label: "B1" } },
+      { type: 2, id: "C", lat: 1, lng: 2, level: null },
+    ],
+  });
 });
 
 test("photometa: nothing found, or an HTTP error", async () => {

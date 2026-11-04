@@ -6,13 +6,14 @@
 /* eslint-disable no-unused-vars */
 
 /** @typedef {import("../domain/geo.js").GeoPoint} GeoPoint */
-/** @typedef {import("../domain/maps-url.js").PanoTarget} PanoTarget */
 
 /** @interface */
 export class PanoramaRepository {
-  /** The panorama (Google's or user-contributed) nearest to a point.
-   * @param {GeoPoint} point @param {number} radiusM @returns {Promise<PanoTarget | null>} */
-  async nearest(point, radiusM) {
+  /** The panorama (Google's or, unless `userPhotos` is false, user-contributed)
+   * nearest to a point, with its floor and links where known.
+   * @param {GeoPoint} point @param {number} radiusM @param {{ userPhotos?: boolean }} [options]
+   * @returns {Promise<import("../domain/maps-url.js").PanoHit | null>} */
+  async nearest(point, radiusM, options) {
     throw new Error("abstract");
   }
 }

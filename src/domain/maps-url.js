@@ -33,7 +33,13 @@ export function dataBlocks(data) {
  * @typedef {{ dir: string, data: string }} Route  the /maps/dir/… path and the data blocks besides the view's
  * @typedef {{ id: string, point: GeoPoint, fov: string, heading: number, tilt: string }} PanoView
  * @typedef {{ type: number, id: string, lat: number, lng: number }} PanoTarget
+ * @typedef {{ ordinal: number, label: string }} Level  a floor in a building: 0 is usually the ground floor
+ * @typedef {PanoTarget & { level?: Level | null }} PanoLink  `level` null outdoors, missing if unknown
+ * @typedef {PanoLink & { links?: PanoLink[] }} PanoHit  a panorama found by a search, with the ones it links to
  */
+
+/** Whether two floors are the same. @param {Level | null | undefined} a @param {Level | null | undefined} b */
+export const sameLevel = (a, b) => !!a && !!b && a.ordinal === b.ordinal;
 
 export class MapsUrl {
   /** @param {string} href */

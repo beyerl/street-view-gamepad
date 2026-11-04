@@ -7,6 +7,8 @@ export const SessionKey = Object.freeze({
   ROUTE: "svgp-route",
   JUMPED: "svgp-jumped", // set just before a jump reloads the page
   VISIT_GREETED: "svgp-visit-greeted", // the Virtual Visit stop whose hint was shown
+  USER_PHOTOS_OFF: "svgp-user-photos-off", // "1": jumps skip user-contributed photos
+  INDOORS: "svgp-indoors", // "1": the last panorama was on a floor of a building
 });
 
 /** chrome.storage.session (background) and chrome.storage.local. */

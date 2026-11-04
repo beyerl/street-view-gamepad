@@ -16,6 +16,9 @@ const TARGET = "@52.5,13.400295,3a,75y,90.00h,90t/data=!3m4!1e1!3m2!1sPANO2!2e0"
 // PANO2 lies 20 m east of PANO1.
 const east = () => ({ nearest: spy(async () => ({ type: 2, id: "PANO2", lat: 52.5, lng: 13.400295 })) });
 
+/** The searches for a jump point, without those for the current panorama's floor. */
+const aheadCalls = (env) => env.panoramas.nearest.calls.filter((c) => c[1] !== 3);
+
 function setup({ href = PANO, panoramas = east(), store = new MemoryStore() } = {}) {
   const scheduler = fakeScheduler();
   const navigator = fakeNavigator(href);
@@ -45,8 +48,8 @@ function walk(env, ms = 1300, edge = WalkEdge.FORWARD) {
 
 test("shows the distance to the next panorama ahead, searching 9 rings", async () => {
   const env = await rested(setup());
-  assert.equal(env.panoramas.nearest.calls.length, 9);
-  const [point, radius] = env.panoramas.nearest.calls[0];
+  assert.equal(aheadCalls(env).length, 9);
+  const [point, radius] = aheadCalls(env)[0];
   assert.ok(Math.abs(point.lng - 13.4) > 0 && radius === 8 * 0.6);
   assert.equal(env.hint.text, "Next jump point 20 m");
 });
@@ -55,10 +58,10 @@ test("looks up again only when the view turns; things behind are not ahead", asy
   const env = await rested(setup());
   env.clock.tick(2000);
   await flush();
-  assert.equal(env.panoramas.nearest.calls.length, 9);
+  assert.equal(aheadCalls(env).length, 9);
   env.navigator.href = PANO.replace("90h", "180h");
   await rested(env);
-  assert.equal(env.panoramas.nearest.calls.length, 18);
+  assert.equal(aheadCalls(env).length, 18);
   assert.equal(env.hint.text, "No jump point in this direction");
 });
 
@@ -94,7 +97,7 @@ test("walking into a dead end jumps ahead, reusing the hint's lookup", async () 
   const env = await rested(setup());
   walk(env);
   assert.deepEqual(env.navigator.assign.calls, [[`https://www.google.com/maps/${TARGET}`]]);
-  assert.equal(env.panoramas.nearest.calls.length, 9);
+  assert.equal(aheadCalls(env).length, 9);
   assert.equal(env.store.get(SessionKey.JUMPED), "1");
 });
 
@@ -127,7 +130,7 @@ test("walking back searches behind and says when nothing is there", async () => 
   walk(env, 1300, WalkEdge.BACK);
   assert.equal(env.toast.text, "Searching for the next Street View point…");
   await flush();
-  assert.equal(env.panoramas.nearest.calls.length, 18);
+  assert.equal(aheadCalls(env).length, 18);
   assert.equal(env.toast.text, "No Street View point found in this direction.");
   assert.deepEqual(env.toast.shown.at(-1), ["No Street View point found in this direction.", 2500]);
 });
@@ -163,12 +166,12 @@ test("strafing searches 90° to the side and keeps the view direction", async ()
 test("strafing does nothing on the map or while searching", async () => {
   const env = setup({ href: MAP });
   env.jump.strafe(Turn.RIGHT);
-  assert.equal(env.panoramas.nearest.calls.length, 0);
+  assert.equal(aheadCalls(env).length, 0);
   const busy = setup({ href: PANO.replace("90h", "0h") });
   busy.jump.strafe(Turn.RIGHT);
   busy.jump.strafe(Turn.RIGHT);
   await flush();
-  assert.equal(busy.panoramas.nearest.calls.length, 9);
+  assert.equal(aheadCalls(busy).length, 9);
 });
 
 // --- route ------------------------------------------------------------------------------

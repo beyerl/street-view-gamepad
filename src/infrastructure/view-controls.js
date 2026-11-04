@@ -129,15 +129,23 @@ const keyAction = (input, k) => ({
 /** @param {(deltaY: number) => void} wheel @param {number} deltaY */
 const wheelAction = (wheel, deltaY) => ({ down: () => wheel(deltaY), up: () => {} });
 
+/** A walk key, unless `guard` says this step must not happen. @param {SceneInput} input @param {KeySpec} k
+ * @param {(back: boolean) => boolean} guard @param {boolean} back */
+const walkAction = (input, k, guard, back) => ({
+  down: (/** @type {boolean} */ repeat) => guard(back) || input.key("keydown", k, repeat),
+  up: () => input.key("keyup", k),
+});
+
 /** Street View: keys walk and zoom. @implements {ViewControls} */
 export class StreetViewControls extends ViewControls {
-  /** @param {SceneInput} input @param {DragLook} look */
-  constructor(input, look) {
+  /** @param {SceneInput} input @param {DragLook} look
+   * @param {(back: boolean) => boolean} [guardWalk] true if a walk step must not happen (see JumpService) */
+  constructor(input, look, guardWalk = () => false) {
     super();
     this.lookControl = look;
     this.actions = {
-      [Action.FORWARD]: keyAction(input, KEYS.up),
-      [Action.BACK]: keyAction(input, KEYS.down),
+      [Action.FORWARD]: walkAction(input, KEYS.up, guardWalk, false),
+      [Action.BACK]: walkAction(input, KEYS.down, guardWalk, true),
       [Action.ZOOM_IN]: keyAction(input, KEYS.zoomIn),
       [Action.ZOOM_OUT]: keyAction(input, KEYS.zoomOut),
     };

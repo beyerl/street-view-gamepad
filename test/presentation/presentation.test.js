@@ -22,6 +22,8 @@ test("chips: the active mode, floors, and every commentary state", () => {
   ]);
   assert.equal(hudChips({ mode: "minimap", floor: null, commentary: c() })[3].active, true);
   assert.equal(hudChips({ mode: "levels", floor: "", commentary: c() })[0].label, "Floor ?");
+  const noPhotos = hudChips({ mode: "levels", floor: "B1", userPhotos: false, commentary: c() })[0];
+  assert.equal(noPhotos.label, "Floor B1 · no user photos");
   assert.deepEqual(hudChips({ mode: "levels", floor: null, commentary: c() })[0], {
     id: "levels",
     active: true,
@@ -58,8 +60,8 @@ test("summary: what the mode buttons do, by the names of their buttons (#26)", (
     { button: "L", label: "Previous article" },
     { button: "R", label: "Next article" },
   ]);
-  // Mode button 2 does nothing on floors; an unassigned one isn't listed; axes by their label.
-  const custom = { ...presetButtonMap("xbox"), mode1: "a9=-1.00", mode3: null };
+  // An unassigned mode button isn't listed; axes by their label.
+  const custom = { ...presetButtonMap("xbox"), mode1: "a9=-1.00", mode2: null, mode3: null };
   assert.deepEqual(hudSummary("levels", custom), [{ button: "Axis 9 = -1.00", label: "One floor up" }]);
   assert.equal(hudSummary("levels", { ...presetButtonMap("snes"), mode1: 4 })[0].button, "LB"); // custom: Xbox names
 });
@@ -161,7 +163,10 @@ test("HUD view: only with a gamepad; placed clear of obstacles", () => {
   hud.place(); // hidden: nothing
   hud.render(true, state);
   assert.equal(hud.el.hidden, false);
-  assert.equal(hud.el.shadowRoot.querySelector(".sum").textContent, "D-pad ↑One floor upD-pad ↓One floor down");
+  assert.equal(
+    hud.el.shadowRoot.querySelector(".sum").textContent,
+    "D-pad ↑One floor upD-pad →Allow / skip user photosD-pad ↓One floor down",
+  );
   setRect(hud.el, 0, 0, 100, 40);
   obstacles.push({ left: 940, top: 650, right: 980, bottom: 790 });
   hud.place();
@@ -256,7 +261,7 @@ test("mode table: a row per mode with what each mode button does", () => {
   const text = (sel) => [...el.querySelectorAll(sel)].map((r) => [...r.children].map((c) => c.textContent));
   assert.deepEqual(text("thead tr"), [["Mode", "Mode button 1", "Mode button 2", "Mode button 3"]]);
   assert.deepEqual(text("tbody tr"), [
-    ["1 Multilayer", "One floor up", "—", "One floor down"],
+    ["1 Multilayer", "One floor up", "Allow / skip user photos", "One floor down"],
     ["2 Wikiaudio", "Play / pause", "Previous article", "Next article"],
     ["3 Browser", "Fullscreen", "Hide / show search bar", "Browser back"],
     ["4 Minimap", "Enlarge / shrink", "Zoom in", "Zoom out"],

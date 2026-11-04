@@ -32,12 +32,12 @@ table above names them by position, as on an Xbox pad.
 Holding walk or zoom repeats it. Stepping keeps the view direction and works in Street View
 only.
 
-| Mode         | Mode button 1     | Mode button 2          | Mode button 3      |
-| ------------ | ----------------- | ---------------------- | ------------------ |
-| 1 Multilayer | one floor up      | —                      | one floor down     |
-| 2 Wikiaudio  | play / pause      | previous article       | next article       |
-| 3 Browser    | toggle fullscreen | hide / show search bar | browser back       |
-| 4 Minimap    | enlarge / shrink  | zoom in (repeats)      | zoom out (repeats) |
+| Mode         | Mode button 1     | Mode button 2            | Mode button 3      |
+| ------------ | ----------------- | ------------------------ | ------------------ |
+| 1 Multilayer | one floor up      | allow / skip user photos | one floor down     |
+| 2 Wikiaudio  | play / pause      | previous article         | next article       |
+| 3 Browser    | toggle fullscreen | hide / show search bar   | browser back       |
+| 4 Minimap    | enlarge / shrink  | zoom in (repeats)        | zoom out (repeats) |
 
 Floors wrap around: up from the top floor goes to the bottom one and down from the bottom to the
 top. Next / previous article goes through the (up to ten) articles nearby, wrapping around; a
@@ -69,7 +69,10 @@ mode is remembered for the tab.
   floor picker and gray otherwise; the label shows the current floor. Google's markup is
   obfuscated, so the picker is recognised by its shape: a vertical column of short labels like
   `B1`, `1`, `2F` in the right half of the screen. If Google changes it, this may stop working.
-  Set the log level to _Debug_ to see what was found.
+  Set the log level to _Debug_ to see what was found. Mode button 2 switches user-contributed
+  photos on and off for jumps (see [Unconnected panoramas](#unconnected-panoramas)): where
+  Google's own imagery is dense, they mostly get in the way. While they are off, the label says
+  _no user photos_. The choice is remembered for the tab.
 - **Wikiaudio** (speaker icon): the icon turns orange when there is a Wikipedia article
   about a place within 500 m, and the label shows its title. Mode button 1 plays it, pauses it
   and resumes it. Nothing plays automatically. A spinner next to the icon shows while it loads (downloading, or synthesizing the voice). When several articles are nearby, the label numbers them
@@ -122,6 +125,28 @@ Holding forward walks normally and starts the search once you reach a dead end. 
 new panorama's URL, so the page reloads, which takes a moment. The search uses the same
 unofficial endpoint the Maps web app uses (`/maps/photometa/si/v1`), so it may break if Google
 changes it. Distances and angles are constants (`JUMP_*`) in `src/shared/config.js`.
+
+With user photos switched off (mode button 2 in the Multilayer mode), the search only finds
+Google's own panoramas.
+
+### Staying on one floor
+
+In buildings with several floors, such as Tokyo Station, Google links panoramas across floors
+(stairs, escalators), so both its own walking and the nearest point ahead often lead to another
+floor. The search also tells each panorama's floor, so walking, stepping and jumping stay on the
+current floor whenever there is a point on it in that direction:
+
+- Jumps and steps go to the nearest point on the current floor within ±40°, counting the
+  panoramas linked from the ones found too; only if there is none they go to another floor.
+- Before each walk step, the extension checks which linked panorama Google would walk to (the
+  one closest to the direction). If that one is on another floor, it jumps along the current
+  floor instead (a page reload rather than Google's smooth step). If no other point lies
+  ahead, it takes Google's link anyway.
+- While the floor of a new panorama is still being looked up (a fraction of a second), a held walk
+  button waits instead of stepping on. A press in that moment jumps a second later, as at a dead
+  end.
+
+Use the floor buttons of the Multilayer mode to change floors on purpose.
 
 If directions are open, the route on the Street View minimap is carried over to the new
 panorama: the jump keeps the `/maps/dir/…` part of the URL and the route's blocks in its
