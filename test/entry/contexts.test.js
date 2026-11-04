@@ -33,7 +33,7 @@ test("bridge: pushes settings merged with the defaults, on load, on request and 
   const chrome = makeChrome({ sync: { lookSpeedX: 1000, buttonMap: { forward: 7, mode1: 12 } } });
   startBridge({ window, chrome });
   await flush();
-  const settings = window.posted[0].settings;
+  const settings = window.posted.find((m) => m.type === "settings").settings;
   assert.equal(settings.lookSpeedX, 1000);
   assert.equal(settings.buttonMap.forward, 7);
   assert.equal(settings.buttonMap.back, 0);
@@ -41,7 +41,8 @@ test("bridge: pushes settings merged with the defaults, on load, on request and 
   chrome.storage.onChanged.emit({}, "sync");
   chrome.storage.onChanged.emit({}, "local");
   await flush();
-  assert.equal(window.posted.length, 3);
+  assert.equal(window.posted.filter((m) => m.type === "settings").length, 3);
+  assert.equal(window.posted.filter((m) => m.type === "visit").length, 1);
 });
 
 test("bridge: forwards page messages with only their fields; relays background messages", async () => {
@@ -381,4 +382,83 @@ test("manifest and pages only reference files that exist (after npm run build)",
   for (const f of files.filter((f) => f.startsWith("dist/")))
     assert.doesNotMatch(fs.readFileSync(new URL(f, root), "utf8"), /^\s*import\s/m, f);
   assert.equal(manifest.content_scripts[0].world, "MAIN");
+});
+
+// --- Virtual Visit ------------------------------------------------------------------------
+
+const VISIT = {
+  slot: "g1",
+  returnUrl: "https://beyerl.github.io/virtual-visit/#visit=g1",
+  origin: "35.6812,139.7649",
+  destination: "35.6797,139.7546",
+  state: "entering",
+  finished: false,
+  position: null,
+  startedAt: 1,
+};
+
+test("bridge: hands the visit to the page, stores entering, moves and the finish, then goes back to the game", async () => {
+  const window = fakeWindow();
+  window.location = { assign: spy() };
+  const chrome = makeChrome({ local: { virtualVisit: VISIT } });
+  startBridge({ window, chrome });
+  await flush();
+  assert.deepEqual(window.posted.find((m) => m.type === "visit").visit, VISIT);
+  window.fromPage({ type: "visitEntered" });
+  await flush();
+  assert.equal(chrome.storage.local.data.virtualVisit.state, "visiting");
+  window.fromPage({ type: "visitMoved", position: { lat: 1, lng: 2 } });
+  await flush();
+  assert.deepEqual(chrome.storage.local.data.virtualVisit.position, { lat: 1, lng: 2 });
+  chrome.storage.onChanged.emit({ virtualVisit: {} }, "local");
+  await flush();
+  assert.equal(window.posted.filter((m) => m.type === "visit").length, 2);
+  window.fromPage({ type: "visitFinish" });
+  await flush();
+  assert.equal(chrome.storage.local.data.virtualVisit.finished, true);
+  assert.deepEqual(window.location.assign.calls, [[VISIT.returnUrl]]);
+  // Finished visits don't change any more.
+  window.fromPage({ type: "visitMoved", position: { lat: 5, lng: 5 } });
+  window.fromPage({ type: "visitFinish" });
+  await flush();
+  assert.deepEqual(chrome.storage.local.data.virtualVisit.position, { lat: 1, lng: 2 });
+  assert.equal(window.location.assign.calls.length, 1);
+});
+
+test("visit link: answers hello with the stored visit, accepts a ticket from its own origin, clears", async () => {
+  const { startVisitLink } = await import("../../src/entry/visit-link.js");
+  const handlers = {};
+  const window = {
+    location: { origin: "https://beyerl.github.io" },
+    posted: [],
+    addEventListener: (t, f) => (handlers[t] ||= []).push(f),
+    postMessage: (data, origin) => window.posted.push({ data, origin }),
+  };
+  const fromGame = (data) =>
+    Promise.all(handlers.message.map((f) => f({ source: window, data: { source: "virtual-visit", ...data } })));
+  const chrome = makeChrome();
+  startVisitLink({ window, chrome, now: () => 42 });
+  await flush();
+  assert.deepEqual(window.posted[0], {
+    data: { source: "sv-gamepad-visit", type: "vv-state", version: "1.2.3", ticket: null },
+    origin: "https://beyerl.github.io",
+  });
+  const { state: _s, finished: _f, position: _p, startedAt: _t, ...ticket } = VISIT;
+  await fromGame({ type: "vv-start", ticket });
+  assert.equal(chrome.storage.local.data.virtualVisit.startedAt, 42);
+  assert.deepEqual(window.posted.at(-1).data, { source: "sv-gamepad-visit", type: "vv-started", ok: true });
+  await fromGame({ type: "vv-start", ticket: { ...ticket, slot: "g2", returnUrl: "https://evil.example/" } });
+  assert.equal(chrome.storage.local.data.virtualVisit.slot, "g1");
+  assert.equal(window.posted.at(-1).data.ok, false);
+  await fromGame({ type: "vv-hello" });
+  assert.equal(window.posted.at(-1).data.ticket.slot, "g1");
+  await fromGame({ type: "vv-clear" });
+  assert.equal("virtualVisit" in chrome.storage.local.data, false);
+  // Messages from elsewhere are ignored.
+  await Promise.all(
+    handlers.message.map((f) => f({ source: {}, data: { source: "virtual-visit", type: "vv-hello" } })),
+  );
+  chrome.storage.onChanged.emit({ virtualVisit: {} }, "local");
+  await flush();
+  assert.equal(window.posted.at(-1).data.type, "vv-state");
 });

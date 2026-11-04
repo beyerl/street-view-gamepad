@@ -7,6 +7,7 @@ import * as esbuild from "esbuild";
 export const ENTRIES = {
   page: "src/entry/page-main.js", // content script, MAIN world
   bridge: "src/entry/bridge-main.js", // content script, isolated world
+  "visit-link": "src/entry/visit-link-main.js", // content script on the Virtual Visit game, isolated world
   background: "src/entry/background-main.js",
   offscreen: "src/entry/offscreen-main.js",
   popup: "src/entry/popup-main.js",

@@ -17,6 +17,7 @@ import { MinimapService } from "../application/minimap-service.js";
 import { ModeService } from "../application/mode-service.js";
 import { OverlayService } from "../application/overlay-service.js";
 import { RouteKeeper } from "../application/route-keeper.js";
+import { VisitService } from "../application/visit-service.js";
 import { LocationNavigator, GamepadInput } from "../infrastructure/browser.js";
 import { GoogleMapsDom } from "../infrastructure/google-maps-dom.js";
 import { makeLogger } from "../infrastructure/logger.js";
@@ -87,6 +88,7 @@ export function startPage(g) {
   const minimap = new MinimapService(dom, toast);
   const commentary = new CommentaryClient({ bus, navigator, modes, toast, isHidden, onChange: renderHud });
   const ambient = new AmbientReporter({ bus, navigator, settings, isHidden });
+  const visit = new VisitService({ bus, navigator, panoramas, input, toast, store, isHidden, log });
   modes.onChange(renderHud);
 
   /** What each press action and each mode command does. */
@@ -123,7 +125,11 @@ export function startPage(g) {
     log,
   });
 
-  scheduler.every(config.TICK_INTERVAL, () => controller.tick());
+  scheduler.every(config.TICK_INTERVAL, () => {
+    controller.tick();
+    visit.tick();
+  });
+  scheduler.every(config.VISIT_POLL, () => visit.update());
   scheduler.every(config.OVERLAY_POLL, () => overlay.refresh());
   scheduler.every(config.AMBIENT_POLL, () => ambient.update());
   scheduler.every(config.AHEAD_POLL, () => jump.updateAhead());
@@ -146,5 +152,5 @@ export function startPage(g) {
   ambient.update();
   routes.update();
 
-  return { settings, modes, jump, routes, commentary, levels, overlay, controller, hud, toast, hint, scheduler };
+  return { settings, modes, jump, routes, commentary, levels, overlay, controller, hud, toast, hint, scheduler, visit };
 }
