@@ -201,13 +201,21 @@ test("a remembered route is dropped on a page load that wasn't a jump, or if it 
   assert.equal(new RouteKeeper(garbage, fakeNavigator(PANO), noLog).current(), null);
 });
 
-test("closing the directions, or the map without them, forgets the route", () => {
+test("Maps dropping the route from a Street View URL keeps it; the map without directions forgets it", () => {
   const nav = fakeNavigator(ROUTE_PANO);
   const store = new MemoryStore();
   const routes = new RouteKeeper(store, nav, noLog);
   routes.update();
   assert.ok(store.get(SessionKey.ROUTE));
-  nav.href = PANO;
+  nav.href = PANO; // Maps rewrote the URL after loading, or after its own step
+  routes.update();
+  assert.deepEqual(routes.current(), { dir: DIR, data: ROUTE });
+  nav.href = ROUTE_PANO.replace(ROUTE, ""); // the directions without their data blocks
+  assert.deepEqual(routes.current(), { dir: DIR, data: ROUTE });
+  nav.href = `https://www.google.com/maps/${DIR}/@52.5,13.4,15z/data=${ROUTE}`; // back on the map, directions open
+  routes.update();
+  assert.ok(store.get(SessionKey.ROUTE));
+  nav.href = MAP; // directions closed
   routes.update();
   assert.equal(store.get(SessionKey.ROUTE), null);
 

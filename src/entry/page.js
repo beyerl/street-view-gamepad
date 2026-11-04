@@ -99,7 +99,7 @@ export function startPage(g) {
   const minimap = new MinimapService(dom, toast);
   const commentary = new CommentaryClient({ bus, navigator, modes, toast, isHidden, onChange: renderHud });
   const ambient = new AmbientReporter({ bus, navigator, settings, isHidden });
-  const visit = new VisitService({ bus, navigator, panoramas, input, toast, store, isHidden, log });
+  const visit = new VisitService({ bus, navigator, panoramas, input, toast, store, isHidden, routes, log });
   modes.onChange(renderHud);
 
   /** What each press action and each mode command does. */

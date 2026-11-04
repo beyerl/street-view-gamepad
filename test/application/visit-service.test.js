@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { RouteKeeper } from "../../src/application/route-keeper.js";
 import { VisitService } from "../../src/application/visit-service.js";
 import { VisitState } from "../../src/domain/visit.js";
 import { MemoryStore } from "../../src/infrastructure/session-store.js";
 import { Msg } from "../../src/shared/messages.js";
+import { SessionKey } from "../../src/shared/storage-keys.js";
 import { fakeBus, fakeNavigator, fakeToast, flush, noLog, pad, spy } from "../helpers/fakes.js";
 
 const ROUTE =
@@ -31,7 +33,18 @@ function setup({ href = ROUTE, nearest = async () => ({ type: 2, id: "PANO1", la
   const input = { pads: () => state.pads };
   const toast = fakeToast();
   const store = new MemoryStore();
-  const svc = new VisitService({ bus, navigator, panoramas, input, toast, store, isHidden: () => false, log: noLog });
+  const routes = new RouteKeeper(store, navigator, noLog);
+  const svc = new VisitService({
+    bus,
+    navigator,
+    panoramas,
+    input,
+    toast,
+    store,
+    isHidden: () => false,
+    routes,
+    log: noLog,
+  });
   return { svc, bus, navigator, panoramas, state, toast, store };
 }
 
@@ -57,6 +70,14 @@ test("visit service: enters Street View at the route start, facing the destinati
     /^https:\/\/www\.google\.com\/maps\/dir\/35\.6812,139\.7649\/35\.6797,139\.7546\/@35\.6813,139\.765,3a,75y,2\d\d\.\d\dh,90t\/data=!3m4!1e1!3m2!1sPANO1!2e0!4m2!4m1!3e2$/,
   );
   assert.equal(env.toast.shown[0][0], "Virtual Visit: press L + R together to finish this stop.");
+  // Kept for the next page, even if Maps drops the route from its URL before the page script looks.
+  assert.equal(env.store.get(SessionKey.JUMPED), "1");
+  const next = new RouteKeeper(
+    env.store,
+    fakeNavigator(url.replace(/\/maps\/dir\/[^@]*/, "/maps/").replace("!4m2!4m1!3e2", "")),
+    noLog,
+  );
+  assert.deepEqual(next.current(), { dir: "dir/35.6812,139.7649/35.6797,139.7546", data: "!4m2!4m1!3e2" });
 });
 
 test("visit service: widens the search, and says so when there is no panorama", async () => {
