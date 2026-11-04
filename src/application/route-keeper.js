@@ -1,7 +1,8 @@
 // With directions open, the minimap in Street View shows the route. A jump
 // loads a new URL, so it carries the route over (see JumpService). The route
-// is also remembered for the tab, in case the page after a jump doesn't show
-// it in its URL, and forgotten once the user closes it.
+// is also remembered for the tab: in Street View, Maps rewrites the URL after
+// loading and after its own steps, often without the route, so the route
+// only counts as closed on the map without directions.
 
 import { MapsUrl } from "../domain/maps-url.js";
 import { SessionKey } from "../shared/storage-keys.js";
@@ -18,7 +19,6 @@ export class RouteKeeper {
     this.log = log;
     /** @type {import("../domain/maps-url.js").Route | null} */
     this.saved = null;
-    this.seen = false; // the URL showed a route since this page loaded
     // Only a jump carries the route over a reload; any other page load starts afresh.
     if (store.get(SessionKey.JUMPED)) {
       try {
@@ -38,15 +38,17 @@ export class RouteKeeper {
     else this.store.remove(SessionKey.ROUTE);
   }
 
-  /** Polled: keep the saved route in step with the URL. It goes when it
-   * disappears from the URL (directions closed), or on the map without one. */
+  /** Polled: keep the saved route in step with the URL. A URL showing the
+   * same directions without their data blocks (travel mode, places) keeps the
+   * saved ones. The route goes only on the map without directions: in Street
+   * View a URL without them says nothing. */
   update() {
     const url = new MapsUrl(this.navigator.href);
     const r = url.route;
     if (r) {
-      this.seen = true;
+      if (!r.data && r.dir === this.saved?.dir) return;
       if (JSON.stringify(r) !== JSON.stringify(this.saved)) this.save(r);
-    } else if (this.saved && (this.seen || !url.isStreetView)) {
+    } else if (this.saved && !url.isStreetView) {
       this.log("debug", "route closed");
       this.save(null);
     }
@@ -60,5 +62,13 @@ export class RouteKeeper {
   /** Called just before a jump reloads the page. */
   markJump() {
     this.store.set(SessionKey.JUMPED, "1");
+  }
+
+  /** Called just before we load a URL showing `route`: the page after it keeps
+   * the route even if Maps drops it from the URL before we look.
+   * @param {import("../domain/maps-url.js").Route | null} route */
+  carryOver(route) {
+    if (route) this.save(route);
+    this.markJump();
   }
 }

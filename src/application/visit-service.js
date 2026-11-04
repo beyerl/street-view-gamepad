@@ -20,10 +20,11 @@ export class VisitService {
    * @param {{ bus: import("../ports/index.js").MessageBus, navigator: import("../ports/index.js").PageNavigator,
    *           panoramas: import("../ports/index.js").PanoramaRepository, input: import("../ports/index.js").InputSource,
    *           toast: import("../ports/index.js").Toast, store: import("../ports/index.js").KeyValueStore, isHidden: () => boolean,
-   *           log: (level: string, ...a: any[]) => void }} deps
+   *           routes?: import("./route-keeper.js").RouteKeeper, log: (level: string, ...a: any[]) => void }} deps
    */
-  constructor({ bus, navigator, panoramas, input, toast, store, isHidden, log }) {
+  constructor({ bus, navigator, panoramas, input, toast, store, isHidden, routes, log }) {
     this.bus = bus;
+    this.routes = routes;
     this.navigator = navigator;
     this.panoramas = panoramas;
     this.input = input;
@@ -77,6 +78,7 @@ export class VisitService {
       const { origin, search } = this.navigator;
       const heading = from.to(to).bearing;
       this.log("info", "visit: entering Street View at", target.id);
+      this.routes?.carryOver(url.route);
       this.navigator.assign(
         MapsUrl.forPanorama({ origin, search, target, fov: "75", heading, tilt: "90", route: url.route }),
       );

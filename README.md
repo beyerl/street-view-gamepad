@@ -150,9 +150,11 @@ Use the floor buttons of the Multilayer mode to change floors on purpose.
 
 If directions are open, the route on the Street View minimap is carried over to the new
 panorama: the jump keeps the `/maps/dir/…` part of the URL and the route's blocks in its
-`data=` part. The route is also remembered for the tab (session storage) in case the page after
-the jump doesn't show it in its URL, and forgotten as soon as you close the directions or go
-back to the map without them.
+`data=` part. The route is also remembered for the tab (session storage): in Street View, Maps
+rewrites the URL after loading and after its own steps, often without the route, so a URL
+without it doesn't count as closing the directions there. The route is forgotten once you are
+back on the map without directions. Entering a Virtual Visit stop carries the route over the
+same way.
 
 ## Ambient sound
 
