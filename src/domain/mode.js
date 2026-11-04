@@ -19,6 +19,7 @@ export const isMode = (m) => typeof m === "string" && MODES.includes(m);
 export const ModeCommand = Object.freeze({
   LEVEL_UP: "levelUp",
   LEVEL_DOWN: "levelDown",
+  USER_PHOTOS: "userPhotos",
   PLAY_PAUSE: "playPause",
   ARTICLE_NEXT: "articleNext",
   ARTICLE_PREV: "articlePrev",
@@ -38,7 +39,10 @@ export const REPEATING = Object.freeze(new Set([ModeCommand.MINIMAP_ZOOM_IN, Mod
 /** Per mode, its name and the commands of mode buttons 1, 2 and 3.
  * @type {Readonly<Record<string, ModeDef>>} */
 export const MODE_TABLE = Object.freeze({
-  [Mode.LEVELS]: { name: "Multilayer", buttons: [ModeCommand.LEVEL_UP, null, ModeCommand.LEVEL_DOWN] },
+  [Mode.LEVELS]: {
+    name: "Multilayer",
+    buttons: [ModeCommand.LEVEL_UP, ModeCommand.USER_PHOTOS, ModeCommand.LEVEL_DOWN],
+  },
   [Mode.COMMENTARY]: {
     name: "Wikiaudio",
     buttons: [ModeCommand.PLAY_PAUSE, ModeCommand.ARTICLE_PREV, ModeCommand.ARTICLE_NEXT],
@@ -57,6 +61,7 @@ export const MODE_TABLE = Object.freeze({
 export const COMMAND_LABELS = Object.freeze({
   [ModeCommand.LEVEL_UP]: "One floor up",
   [ModeCommand.LEVEL_DOWN]: "One floor down",
+  [ModeCommand.USER_PHOTOS]: "Allow / skip user photos",
   [ModeCommand.PLAY_PAUSE]: "Play / pause",
   [ModeCommand.ARTICLE_NEXT]: "Next article",
   [ModeCommand.ARTICLE_PREV]: "Previous article",

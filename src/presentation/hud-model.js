@@ -11,16 +11,17 @@ import { PlaybackStatus } from "../domain/commentary-state.js";
  * @typedef {{ button: string, label: string }} SummaryLine
  */
 
-/** @param {{ mode: string, floor: string | null, commentary: CommentaryView }} s floor: the current floor's label, "" if unknown, null if no picker
+/** @param {{ mode: string, floor: string | null, userPhotos?: boolean, commentary: CommentaryView }} s
+ * floor: the current floor's label, "" if unknown, null if no picker; userPhotos: whether jumps may land on them
  * @returns {Chip[]} */
-export function hudChips({ mode, floor, commentary: c }) {
+export function hudChips({ mode, floor, userPhotos = true, commentary: c }) {
   /** @type {Record<string, Omit<Chip, "id" | "active">>} */
   const chips = {
     [Mode.LEVELS]: {
       on: floor !== null,
       playing: false,
       loading: false,
-      label: floor !== null ? `Floor ${floor || "?"}` : "No floors here",
+      label: (floor !== null ? `Floor ${floor || "?"}` : "No floors here") + (userPhotos ? "" : " · no user photos"),
     },
     [Mode.COMMENTARY]: {
       on: c.available || c.status !== PlaybackStatus.STOPPED,

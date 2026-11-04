@@ -17,6 +17,7 @@ import { MinimapService } from "../application/minimap-service.js";
 import { ModeService } from "../application/mode-service.js";
 import { OverlayService } from "../application/overlay-service.js";
 import { RouteKeeper } from "../application/route-keeper.js";
+import { UserPhotosService } from "../application/user-photos-service.js";
 import { VisitService } from "../application/visit-service.js";
 import { LocationNavigator, GamepadInput } from "../infrastructure/browser.js";
 import { GoogleMapsDom } from "../infrastructure/google-maps-dom.js";
@@ -76,11 +77,21 @@ export function startPage(g) {
   const overlay = new OverlayService(dom, store, log);
   const routes = new RouteKeeper(store, navigator, log);
   const panoramas = new PhotometaPanoramaRepository((url) => g.fetch(url));
-  const jump = new JumpService({ panoramas, navigator, routes, scheduler, toast, hint, log });
+  const photos = new UserPhotosService({
+    store,
+    toast,
+    onChange: () => {
+      jump.refresh();
+      renderHud();
+    },
+    log,
+  });
+  const jump = new JumpService({ panoramas, navigator, routes, scheduler, toast, hint, store, photos, log });
   const renderHud = () =>
     hud.render(input.pads().length > 0, {
       mode: modes.mode,
       floor: levels.floor(),
+      userPhotos: photos.allowed,
       commentary: commentary.state,
       buttonMap: settings.buttonMap,
     });
@@ -98,6 +109,7 @@ export function startPage(g) {
     [Action.STRAFE_RIGHT]: () => jump.strafe(Turn.RIGHT),
     [ModeCommand.LEVEL_UP]: () => levels.switch(LevelStep.UP),
     [ModeCommand.LEVEL_DOWN]: () => levels.switch(LevelStep.DOWN),
+    [ModeCommand.USER_PHOTOS]: () => photos.toggle(),
     [ModeCommand.PLAY_PAUSE]: () => commentary.toggle(),
     [ModeCommand.ARTICLE_NEXT]: () => commentary.next(1),
     [ModeCommand.ARTICLE_PREV]: () => commentary.next(-1),
@@ -116,7 +128,7 @@ export function startPage(g) {
     settings,
     isHidden,
     isStreetView,
-    streetView: new StreetViewControls(scene, look),
+    streetView: new StreetViewControls(scene, look, (back) => jump.guardWalk(back)),
     map: new MapControls(scene, look),
     jump,
     commands,
@@ -152,5 +164,20 @@ export function startPage(g) {
   ambient.update();
   routes.update();
 
-  return { settings, modes, jump, routes, commentary, levels, overlay, controller, hud, toast, hint, scheduler, visit };
+  return {
+    settings,
+    modes,
+    jump,
+    routes,
+    commentary,
+    levels,
+    photos,
+    overlay,
+    controller,
+    hud,
+    toast,
+    hint,
+    scheduler,
+    visit,
+  };
 }

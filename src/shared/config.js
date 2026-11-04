@@ -19,6 +19,8 @@ export const JUMP_SEARCH_WIDTH = 0.6; // search radius per step, relative to its
 export const AHEAD_DELAY = 400; // the view must rest this long before looking up the point ahead
 export const AHEAD_REUSE_ANGLE = 5; // ° the view may have turned and still use that lookup
 export const AHEAD_POLL = 250;
+export const HERE_RADIUS = 3; // m around the view's position to look up its panorama's floor and links
+export const WALK_LINK_ANGLE = 90; // ° off the walking direction Google still walks along a link
 export const ROUTE_POLL = 1000;
 
 // Virtual Visit

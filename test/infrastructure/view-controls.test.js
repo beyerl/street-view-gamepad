@@ -65,6 +65,21 @@ test("Street View walks and zooms with keys carrying keyCode and which", () => {
   assert.equal(env.sv.held(Action.MODE), null);
 });
 
+test("a walk step the guard stops sends no key", () => {
+  const env = setup();
+  const guarded = [];
+  const sv = new StreetViewControls(env.input, env.look, (back) => (guarded.push(back), back));
+  sv.held(Action.FORWARD).down(false);
+  sv.held(Action.BACK).down(false);
+  sv.held(Action.BACK).up();
+  assert.deepEqual(guarded, [false, true]);
+  assert.deepEqual(
+    env.rec.of("keydown", env.scene).map((e) => e.key),
+    ["ArrowUp"],
+  );
+  assert.equal(env.rec.of("keyup", env.scene).at(-1).key, "ArrowDown");
+});
+
 test("keys go to the body without a scene", () => {
   const env = setup({ withScene: false });
   env.sv.held(Action.FORWARD).down(false);

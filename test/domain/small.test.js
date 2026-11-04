@@ -22,7 +22,7 @@ test("mode table: three mode buttons per mode, each command labelled", () => {
     for (const c of MODE_TABLE[m].buttons) if (c) assert.ok(COMMAND_LABELS[c], c);
   }
   assert.equal(modeCommand(Mode.LEVELS, 0), "levelUp");
-  assert.equal(modeCommand(Mode.LEVELS, 1), null);
+  assert.equal(modeCommand(Mode.LEVELS, 1), "userPhotos");
   assert.equal(modeCommand(Mode.COMMENTARY, 2), "articleNext");
   assert.equal(modeCommand(Mode.BROWSER, 1), "overlay");
   assert.equal(modeCommand(Mode.MINIMAP, 1), "minimapZoomIn");
