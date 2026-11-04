@@ -153,3 +153,27 @@ test("browser mode buttons, notices from the background, and gamepad connection 
   env.window.dispatch("gamepadconnected", { gamepad: { id: "Xbox" } });
   assert.deepEqual(env.console.log.calls.at(-1), ["[Street View Gamepad]", "connected:", "Xbox"]);
 });
+
+test("Virtual Visit: reports moves and finishes the stop with both shoulder buttons", () => {
+  const env = setup();
+  assert.equal(env.posted("getVisit").length, 1);
+  env.fromBridge({
+    type: "visit",
+    visit: {
+      slot: "g1",
+      returnUrl: "https://beyerl.github.io/virtual-visit/#visit=g1",
+      origin: "52.5,13.4",
+      destination: "52.6,13.4",
+      state: "visiting",
+      finished: false,
+      position: null,
+      startedAt: 1,
+    },
+  });
+  env.clock.tick(600);
+  assert.equal(env.posted("visitMoved")[0].position.url, PANO);
+  env.press(4, 5);
+  env.clock.tick(16);
+  assert.equal(env.posted("visitFinish").length, 1);
+  assert.equal(env.document.querySelector("svgp-toast").text, "Back to Virtual Visit…");
+});

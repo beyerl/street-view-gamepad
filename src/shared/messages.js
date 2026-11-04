@@ -7,12 +7,29 @@
 export const Source = Object.freeze({
   PAGE: "sv-gamepad", // from the page script
   BRIDGE: "sv-gamepad-bridge", // from the bridge
+  GAME: "virtual-visit", // from the Virtual Visit game's page
+  VISIT_LINK: "sv-gamepad-visit", // from our content script on that page
+});
+
+/** Messages between the Virtual Visit game and our content script on its page (see domain/visit.js). */
+export const VisitMsg = Object.freeze({
+  HELLO: "vv-hello", // game: is the extension there? answered with STATE
+  START: "vv-start", // game: a visit begins (ticket), answered with STARTED
+  CLEAR: "vv-clear", // game: the visit was taken over, forget it
+  STATE: "vv-state", // extension: the stored visit (or null) and our version
+  STARTED: "vv-started",
 });
 
 /** Types of messages between the page, the bridge and the background worker. */
 export const Msg = Object.freeze({
   // page -> bridge
   GET_SETTINGS: "getSettings",
+  GET_VISIT: "getVisit",
+  VISIT_ENTERED: "visitEntered", // Street View is open for the visit
+  VISIT_MOVED: "visitMoved", // { position }
+  VISIT_FINISH: "visitFinish", // L + R: back to the game
+  // bridge -> page
+  VISIT: "visit", // { visit } the running Virtual Visit stop, or null
   // page -> background (forwarded by the bridge)
   TOGGLE_FULLSCREEN: "toggleFullscreen",
   AMBIENT: "ambient",

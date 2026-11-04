@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Street View Gamepad",
-  "version": "1.11.0",
-  "description": "Control Google Maps and Street View with a gamepad and hear ambient field recordings from nearby (radio aporee ::: maps) and spoken Wikipedia articles about the place.",
+  "version": "1.12.0",
+  "description": "Control Google Maps and Street View with a gamepad and hear ambient field recordings from nearby (radio aporee ::: maps) and spoken Wikipedia articles about the place. Plays the Street View stops of the Virtual Visit game.",
   "permissions": ["storage", "offscreen", "declarativeNetRequest"],
   "background": {
     "service_worker": "dist/background.js"
@@ -34,6 +34,11 @@
       ],
       "js": ["dist/bridge.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://beyerl.github.io/virtual-visit/*", "http://localhost/*", "http://127.0.0.1/*"],
+      "js": ["dist/visit-link.js"],
+      "run_at": "document_start"
     }
   ],
   "content_security_policy": {

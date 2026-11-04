@@ -21,6 +21,11 @@ export const AHEAD_REUSE_ANGLE = 5; // ° the view may have turned and still use
 export const AHEAD_POLL = 250;
 export const ROUTE_POLL = 1000;
 
+// Virtual Visit
+export const VISIT_FINISH_BUTTONS = Object.freeze([4, 5]); // both shoulder buttons (standard mapping): finish the stop
+export const VISIT_ENTER_RADII = Object.freeze([50, 250]); // m around the route start to look for a panorama
+export const VISIT_POLL = 500;
+
 // Page
 export const OVERLAY_POLL = 500; // Maps re-renders the panels we hide
 export const AMBIENT_POLL = 1000;

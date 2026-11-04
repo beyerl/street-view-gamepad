@@ -6,16 +6,17 @@ Maps map — with a gamepad.
 The key mapping window offers two presets, **Xbox Classic** (the default) and **SNES**. Face
 buttons are named by position as on an Xbox pad: Y top, B right, A bottom, X left.
 
-| Action                  | Xbox Classic | SNES   | Street View                                                      | Map               |
-| ----------------------- | ------------ | ------ | ---------------------------------------------------------------- | ----------------- |
-| Walk forward / backward | Y / A        | Y / A  | walk forward / backward (jumps to unconnected points, see below) | pan north / south |
-| Step left / right       | X / B        | —      | jump to the nearest panorama 90° to the left / right (±40°)      | —                 |
-| Look around             | left stick   | D-pad  | look around / turn                                               | pan               |
-| Zoom in / out           | LT / RT      | X / B  | zoom in / out                                                    | zoom in / out     |
-| Select mode             | D-pad left   | Select | switch to the next mode (see below)                              | same              |
-| Mode button 1           | D-pad up     | Start  | what the current mode says                                       | same              |
-| Mode button 2           | D-pad right  | L      | what the current mode says                                       | same              |
-| Mode button 3           | D-pad down   | R      | what the current mode says                                       | same              |
+| Action                    | Xbox Classic | SNES   | Street View                                                                   | Map               |
+| ------------------------- | ------------ | ------ | ----------------------------------------------------------------------------- | ----------------- |
+| Walk forward / backward   | Y / A        | Y / A  | walk forward / backward (jumps to unconnected points, see below)              | pan north / south |
+| Step left / right         | X / B        | —      | jump to the nearest panorama 90° to the left / right (±40°)                   | —                 |
+| Look around               | left stick   | D-pad  | look around / turn                                                            | pan               |
+| Zoom in / out             | LT / RT      | X / B  | zoom in / out                                                                 | zoom in / out     |
+| Select mode               | D-pad left   | Select | switch to the next mode (see below)                                           | same              |
+| Mode button 1             | D-pad up     | Start  | what the current mode says                                                    | same              |
+| Mode button 2             | D-pad right  | L      | what the current mode says                                                    | same              |
+| Mode button 3             | D-pad down   | R      | what the current mode says                                                    | same              |
+| Finish Virtual Visit stop | LB + RB      | L + R  | both shoulder buttons together, during a [Virtual Visit](#virtual-visit) stop | same              |
 
 ### Xbox Classic
 
@@ -83,6 +84,27 @@ mode is remembered for the tab.
   resuming the old one.
 - **Browser** (tab icon): fullscreen, the search bar and title card, and the browser's history.
 - **Minimap** (map icon): the Street View minimap's size and zoom.
+
+## Virtual Visit
+
+[Virtual Visit](https://github.com/beyerl/virtual-visit) is a gamepad game that travels a city by
+train video and walks its stops in Street View. The Street View part is played with this
+extension:
+
+- Before the game sends the tab to Google Maps, it hands the stop over (a content script on the
+  game's page, `dist/visit-link.js`, keeps it in `chrome.storage.local`).
+- The game opens the stop's walking route as a map: Street View URLs need a panorama id, which
+  only Google knows. The extension looks up the panorama nearest to the route's start (50 m, then
+  250 m) and enters Street View there, facing the destination, with the route kept on the minimap.
+- Every move is stored right away; the game reads it back as its autosave, and a loaded game
+  resumes there.
+- Pressing **both shoulder buttons together** (L + R) finishes the stop and goes back to the
+  game, which plays the next train ride. Coming back with the browser's Back button instead
+  keeps the stop open.
+
+The content script runs on `https://beyerl.github.io/virtual-visit/` and on `localhost` /
+`127.0.0.1` (for running the game locally). It only talks to the page it runs on, and only accepts
+stops whose return address is that page. The protocol is described in `src/domain/visit.js`.
 
 ## Unconnected panoramas
 
@@ -225,7 +247,8 @@ src/
                    bindings, settings, modes, floors, article ranking, commentary playback states
   application/     use cases, given everything they need through their constructors:
                    input controller, jumping, route keeping, modes, floors, minimap, overlay,
-                   commentary and ambient sound (page side and background side), key mapping
+                   commentary and ambient sound (page side and background side), key mapping,
+                   Virtual Visit stops
   ports/           the interfaces the application layer depends on (abstract classes)
   infrastructure/  adapters implementing them: Google Maps' DOM (all page heuristics live in
                    google-maps-dom.js), synthetic input, the photometa / Wikipedia / aporee APIs,
@@ -234,7 +257,8 @@ src/
                    the settings and key mapping components of the extension pages
   shared/          message types, storage keys and tunables, so there are no magic strings
   entry/           one composition root per context: page (MAIN world), bridge, background,
-                   offscreen, popup, mapping. The only code that touches globals.
+                   offscreen, popup, mapping, visit-link (on the Virtual Visit game's page).
+                   The only code that touches globals.
 ```
 
 - **Dependency injection**: services get their collaborators as constructor arguments; the
