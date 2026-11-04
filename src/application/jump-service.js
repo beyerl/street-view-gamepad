@@ -43,9 +43,10 @@ export class JumpService {
    *           routes: import("./route-keeper.js").RouteKeeper, scheduler: import("../ports/index.js").Scheduler,
    *           toast: import("../ports/index.js").Toast, hint: { show(text: string): void },
    *           store?: import("../ports/index.js").KeyValueStore, photos?: { allowed: boolean },
-   *           log: (level: string, ...a: any[]) => void }} deps
+   *           onLeave?: () => void, log: (level: string, ...a: any[]) => void }} deps
+   *   onLeave: called just before a jump reloads the page
    */
-  constructor({ panoramas, navigator, routes, scheduler, toast, hint, store, photos, log }) {
+  constructor({ panoramas, navigator, routes, scheduler, toast, hint, store, photos, onLeave, log }) {
     this.panoramas = panoramas;
     this.navigator = navigator;
     this.routes = routes;
@@ -54,6 +55,7 @@ export class JumpService {
     this.hint = hint;
     this.store = store;
     this.photos = photos;
+    this.onLeave = onLeave;
     this.log = log;
     /** @type {Map<string, Level | null>} the floor of every panorama a search came across */
     this.levels = new Map();
@@ -255,6 +257,7 @@ export class JumpService {
     const route = this.routes.current();
     this.leaving = from.id;
     this.routes.markJump();
+    this.onLeave?.();
     this.navigator.assign(
       MapsUrl.forPanorama({
         origin: this.navigator.origin,

@@ -117,6 +117,53 @@ test("minimap: clicks its size button, or says there is none", () => {
   assert.deepEqual(page.click.calls, [[{ b: 1 }]]);
 });
 
+test("minimap: its size is carried over a jump, once it has settled after the reload", () => {
+  const store = new MemoryStore();
+  const el = (width) => ({ getBoundingClientRect: () => ({ width }) });
+  const page = {
+    map: el(600),
+    button: {},
+    minimap: () => page.map,
+    minimapSizeButton: () => page.button,
+    click: spy(),
+  };
+  new MinimapService(/** @type {any} */ (page), fakeToast(), store).remember(); // large before the jump
+  assert.equal(store.get(SessionKey.MINIMAP_WIDTH), "600");
+
+  const after = new MinimapService(/** @type {any} */ (page), fakeToast(), store);
+  assert.equal(store.get(SessionKey.MINIMAP_WIDTH), null); // once per jump
+  page.map = null;
+  after.restore(); // not there yet
+  page.map = el(150);
+  after.restore(); // just appeared
+  assert.equal(page.click.calls.length, 0);
+  after.restore(); // settled, and small: enlarge
+  assert.deepEqual(page.click.calls, [[page.button]]);
+  after.restore();
+  assert.equal(page.click.calls.length, 1);
+
+  // The same size, nothing to do; no minimap before the jump, nothing remembered.
+  store.set(SessionKey.MINIMAP_WIDTH, "160");
+  const same = new MinimapService(/** @type {any} */ (page), fakeToast(), store);
+  same.restore();
+  same.restore();
+  assert.equal(page.click.calls.length, 1);
+  page.map = null;
+  new MinimapService(/** @type {any} */ (page), fakeToast(), store).remember();
+  assert.equal(store.get(SessionKey.MINIMAP_WIDTH), null);
+});
+
+test("minimap: gives up when no minimap shows after a jump", () => {
+  const store = new MemoryStore({ [SessionKey.MINIMAP_WIDTH]: "600" });
+  const page = { map: null, minimap: () => page.map, minimapSizeButton: () => ({}), click: spy() };
+  const minimap = new MinimapService(/** @type {any} */ (page), fakeToast(), store);
+  for (let i = 0; i < 40; i++) minimap.restore();
+  page.map = { getBoundingClientRect: () => ({ width: 150 }) };
+  minimap.restore();
+  minimap.restore();
+  assert.equal(page.click.calls.length, 0);
+});
+
 test("minimap: zooms with the wheel over it, or says there is none", () => {
   const toast = fakeToast();
   const page = { map: null, minimap: () => page.map, wheel: spy() };

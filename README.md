@@ -156,6 +156,10 @@ without it doesn't count as closing the directions there. The route is forgotten
 back on the map without directions. Entering a Virtual Visit stop carries the route over the
 same way.
 
+The minimap's size is carried over too: a jump remembers how wide the minimap was, and after the
+reload, once the minimap has settled, the extension clicks its enlarge / shrink button if it came
+back at a clearly different size. So an enlarged minimap stays enlarged.
+
 ## Ambient sound
 
 The extension plays the field recording made closest to the position in the Maps URL (your

@@ -86,7 +86,18 @@ export function startPage(g) {
     },
     log,
   });
-  const jump = new JumpService({ panoramas, navigator, routes, scheduler, toast, hint, store, photos, log });
+  const jump = new JumpService({
+    panoramas,
+    navigator,
+    routes,
+    scheduler,
+    toast,
+    hint,
+    store,
+    photos,
+    onLeave: () => minimap.remember(),
+    log,
+  });
   const renderHud = () =>
     hud.render(input.pads().length > 0, {
       mode: modes.mode,
@@ -96,7 +107,7 @@ export function startPage(g) {
       buttonMap: settings.buttonMap,
     });
   const levels = new LevelService({ page: dom, toast, scheduler, onSwitched: renderHud, log });
-  const minimap = new MinimapService(dom, toast);
+  const minimap = new MinimapService(dom, toast, store, log);
   const commentary = new CommentaryClient({ bus, navigator, modes, toast, isHidden, onChange: renderHud });
   const ambient = new AmbientReporter({ bus, navigator, settings, isHidden });
   const visit = new VisitService({ bus, navigator, panoramas, input, toast, store, isHidden, routes, log });
@@ -148,6 +159,7 @@ export function startPage(g) {
   scheduler.every(config.ROUTE_POLL, () => routes.update());
   scheduler.every(config.COMMENTARY_POLL, () => commentary.lookup());
   scheduler.every(config.HUD_RENDER_POLL, renderHud);
+  scheduler.every(config.MINIMAP_POLL, () => minimap.restore());
   scheduler.every(config.HUD_PLACE_POLL, () => hud.place());
 
   document.addEventListener("visibilitychange", () => {
