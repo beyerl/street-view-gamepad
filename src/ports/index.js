@@ -166,6 +166,14 @@ export class MapsPage {
   minimapSizeButton(map) {
     throw new Error("abstract");
   }
+  /** The enlarged minimap's switch for showing where there is imagery, if shown. @returns {Element | null} */
+  minimapImageryToggle() {
+    throw new Error("abstract");
+  }
+  /** Moves a virtual mouse onto an element, as hovering does. @param {Element} el */
+  hover(el) {
+    throw new Error("abstract");
+  }
   /** @param {Element} el */
   click(el) {
     throw new Error("abstract");

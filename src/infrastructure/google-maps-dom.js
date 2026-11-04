@@ -12,6 +12,7 @@ const MINIMAP_SIZE_RE =
   /minimap|(show|hide) (the )?map|karte (anzeigen|ausblenden|einblenden)|expand|collapse|enlarge|shrink|maximi|minimi|vergr|verklein|erweiter|einklapp|ausklapp|agrandir|réduire|ampliar|reducir/i;
 // Maps' own handler names, unlike its class names, say what an element is for.
 const MINIMAP_SEL = '[jsaction*="wheel:minimap"]';
+const IMAGERY_TOGGLE_SEL = '[jsaction*="minimap.layerToggle"]';
 const LABEL_ATTRS = ["aria-label", "title", "data-tooltip"];
 const COLUMN_TOLERANCE = 8; // px the centres of a floor picker's buttons may differ
 const OVERLAY_DEPTH = 6; // how deep to look for top-left panels
@@ -220,7 +221,30 @@ export class GoogleMapsDom extends MapsPage {
     return buttons.filter(near).sort((a, b) => corner(a) - corner(b))[0]?.el || null;
   }
 
+  // Where there is imagery (Google's lines, user photos' dots): the enlarged
+  // minimap has a switch for it, the small one shows it only while hovered.
+
+  minimapImageryToggle() {
+    const el = this.document.querySelector(IMAGERY_TOGGLE_SEL);
+    return el && el.getBoundingClientRect().width && this.visible(el) ? el : null;
+  }
+
   // --- Synthetic input ----------------------------------------------------------
+
+  /** @param {Element} el */
+  hover(el) {
+    const r = el.getBoundingClientRect();
+    const init = {
+      clientX: r.left + r.width / 2,
+      clientY: r.top + r.height / 2,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      view: this.window,
+    };
+    el.dispatchEvent(new this.events.MouseEvent("mouseover", init));
+    el.dispatchEvent(new this.events.MouseEvent("mousemove", init));
+  }
 
   /** A full mouse click in the middle of an element. @param {Element} el */
   click(el) {

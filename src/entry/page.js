@@ -160,7 +160,27 @@ export function startPage(g) {
   scheduler.every(config.COMMENTARY_POLL, () => commentary.lookup());
   scheduler.every(config.HUD_RENDER_POLL, renderHud);
   scheduler.every(config.MINIMAP_POLL, () => minimap.restore());
+  scheduler.every(config.MINIMAP_IMAGERY_POLL, () => minimap.showImagery());
   scheduler.every(config.HUD_PLACE_POLL, () => hud.place());
+
+  // Zooming the minimap with the mouse counts too, so a jump keeps it.
+  const onMinimap = (/** @type {Event} */ e) => {
+    const map = dom.minimap();
+    return e.isTrusted && !!map && e.target instanceof g.Node && map.contains(e.target);
+  };
+  document.addEventListener(
+    "wheel",
+    (e) => onMinimap(e) && minimap.wheeled(e.deltaMode ? e.deltaY * config.WHEEL_LINE : e.deltaY),
+    { capture: true, passive: true },
+  );
+  document.addEventListener(
+    "click",
+    (e) => {
+      const button = e.isTrusted && e.target instanceof g.Element && e.target.closest('[jsaction*="minimap.zoom-"]');
+      if (button) minimap.zoomed(/zoom-in/.test(button.getAttribute("jsaction") ?? "") ? 1 : -1);
+    },
+    { capture: true },
+  );
 
   document.addEventListener("visibilitychange", () => {
     ambient.update();

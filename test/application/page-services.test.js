@@ -153,6 +153,60 @@ test("minimap: its size is carried over a jump, once it has settled after the re
   assert.equal(store.get(SessionKey.MINIMAP_WIDTH), null);
 });
 
+test("minimap: its zoom is carried over a jump, gamepad, wheel and buttons alike, a step per poll", () => {
+  const store = new MemoryStore();
+  const map = { getBoundingClientRect: () => ({ width: 200 }) };
+  const page = { map, minimap: () => page.map, minimapSizeButton: () => ({}), click: spy(), wheel: spy() };
+  const before = new MinimapService(/** @type {any} */ (page), fakeToast(), store);
+  before.zoom(1);
+  before.zoom(1);
+  before.wheeled(-60); // trackpad: short of a step
+  before.wheeled(-60);
+  before.zoomed(1); // its + button
+  before.zoomed(-1);
+  before.remember();
+  assert.equal(store.get(SessionKey.MINIMAP_ZOOM), "3");
+
+  const after = new MinimapService(/** @type {any} */ (page), fakeToast(), store);
+  page.wheel.calls.length = 0;
+  for (let i = 0; i < 6; i++) after.restore(); // settles at the same size, then three steps in
+  assert.deepEqual(page.click.calls, []);
+  assert.deepEqual(
+    page.wheel.calls.map((c) => c[1]),
+    [-100, -100, -100],
+  );
+  after.remember(); // and on to the next page
+  assert.equal(store.get(SessionKey.MINIMAP_ZOOM), "3");
+
+  // A jump before the replay finished still carries all of it.
+  const early = new MinimapService(/** @type {any} */ (page), fakeToast(), store);
+  early.remember();
+  assert.equal(store.get(SessionKey.MINIMAP_ZOOM), "3");
+});
+
+test("minimap: keeps showing where there is imagery: hovers it, and turns the enlarged one's switch back on", () => {
+  const toggle = { state: "true", getAttribute: () => toggle.state };
+  const page = {
+    map: null,
+    toggle: null,
+    minimap: () => page.map,
+    minimapImageryToggle: () => page.toggle,
+    hover: spy(),
+    click: spy(),
+  };
+  const minimap = new MinimapService(/** @type {any} */ (page), fakeToast());
+  minimap.showImagery();
+  assert.equal(page.hover.calls.length, 0);
+  page.map = {};
+  page.toggle = toggle;
+  minimap.showImagery();
+  assert.deepEqual(page.hover.calls, [[page.map]]);
+  assert.equal(page.click.calls.length, 0);
+  toggle.state = "false";
+  minimap.showImagery();
+  assert.deepEqual(page.click.calls, [[toggle]]);
+});
+
 test("minimap: gives up when no minimap shows after a jump", () => {
   const store = new MemoryStore({ [SessionKey.MINIMAP_WIDTH]: "600" });
   const page = { map: null, minimap: () => page.map, minimapSizeButton: () => ({}), click: spy() };
