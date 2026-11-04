@@ -231,6 +231,28 @@ test("clicks are full mouse clicks in the middle; wheel notches too", () => {
   assert.deepEqual([w.deltaY, w.clientX, w.clientY], [-100, 920, 315]);
 });
 
+test("hovering is a mouseover and a mousemove in the middle", () => {
+  const env = setup();
+  const map = setRect(env.el("div"), 20, 690, 220, 100);
+  const seen = [];
+  for (const type of ["mouseover", "mousemove"])
+    map.addEventListener(type, (e) => seen.push([e.type, e.clientX, e.clientY]));
+  env.dom.hover(map);
+  assert.deepEqual(seen, [
+    ["mouseover", 130, 740],
+    ["mousemove", 130, 740],
+  ]);
+});
+
+test("the enlarged minimap's imagery switch, by its handler; none when not shown", () => {
+  const env = setup();
+  assert.equal(env.dom.minimapImageryToggle(), null);
+  const toggle = env.el("button", env.document.body, { role: "checkbox", jsaction: "minimap.layerToggle" });
+  assert.equal(env.dom.minimapImageryToggle(), null); // no size: the small minimap
+  setRect(toggle, 827, 498, 28, 16);
+  assert.equal(env.dom.minimapImageryToggle(), toggle);
+});
+
 test("obstacles: Maps' controls lower right, not big layers, empty boxes or our own UI", () => {
   const env = setup();
   const zoom = setRect(env.el("button"), 940, 650, 40, 80);

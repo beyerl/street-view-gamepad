@@ -8,6 +8,8 @@ export const SessionKey = Object.freeze({
   JUMPED: "svgp-jumped", // set just before a jump reloads the page
   VISIT_GREETED: "svgp-visit-greeted", // the Virtual Visit stop whose hint was shown
   USER_PHOTOS_OFF: "svgp-user-photos-off", // "1": jumps skip user-contributed photos
+  MINIMAP_WIDTH: "svgp-minimap-width", // px, set just before a jump reloads the page
+  MINIMAP_ZOOM: "svgp-minimap-zoom", // steps zoomed in (+) or out (-), set just before a jump
   INDOORS: "svgp-indoors", // "1": the last panorama was on a floor of a building
 });
 

@@ -26,9 +26,10 @@ function setup({ href = PANO, panoramas = east(), store = new MemoryStore() } = 
   const hint = { text: "", show: (t) => (hint.text = t) };
   const log = spy();
   const routes = new RouteKeeper(store, navigator, noLog);
-  const jump = new JumpService({ panoramas, navigator, routes, scheduler, toast, hint, log });
+  const leaving = spy();
+  const jump = new JumpService({ panoramas, navigator, routes, scheduler, toast, hint, onLeave: leaving, log });
   scheduler.every(250, () => jump.updateAhead());
-  return { jump, routes, store, scheduler, clock: scheduler.clock, navigator, toast, hint, panoramas, log };
+  return { leaving, jump, routes, store, scheduler, clock: scheduler.clock, navigator, toast, hint, panoramas, log };
 }
 
 async function rested(env) {
@@ -99,6 +100,7 @@ test("walking into a dead end jumps ahead, reusing the hint's lookup", async () 
   assert.deepEqual(env.navigator.assign.calls, [[`https://www.google.com/maps/${TARGET}`]]);
   assert.equal(aheadCalls(env).length, 9);
   assert.equal(env.store.get(SessionKey.JUMPED), "1");
+  assert.equal(env.leaving.calls.length, 1);
 });
 
 test("no jump when walking reached another panorama", async () => {

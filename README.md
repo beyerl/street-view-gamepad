@@ -156,6 +156,17 @@ without it doesn't count as closing the directions there. The route is forgotten
 back on the map without directions. Entering a Virtual Visit stop carries the route over the
 same way.
 
+The minimap's size and zoom are carried over too: a jump remembers how wide the minimap was and
+how many steps it was zoomed in or out (with the gamepad, the mouse wheel or its own +/- buttons).
+After the reload, once the minimap has settled, the extension clicks its enlarge / shrink button if
+it came back at a clearly different size, then replays the zoom, a step at a time. So an enlarged,
+zoomed-in minimap stays that way.
+
+The minimap always shows where there is imagery: lines where Google drove, dots where users took
+photos. Maps shows them on the small minimap only while the mouse is over it, so the extension
+keeps it in that state with a synthetic hover every second (its zoom buttons show then too); on
+the enlarged minimap it turns Maps' _Show imagery_ switch back on if it was off.
+
 ## Ambient sound
 
 The extension plays the field recording made closest to the position in the Maps URL (your
