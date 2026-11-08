@@ -74,7 +74,7 @@ export function startPage(g) {
 
   const input = new GamepadInput(g.navigator);
   const modes = new ModeService(store, log);
-  const overlay = new OverlayService(dom, store, log);
+  const overlay = new OverlayService(dom, store, log, () => inVisit());
   const routes = new RouteKeeper(store, navigator, log);
   const panoramas = new PhotometaPanoramaRepository((url) => g.fetch(url));
   const photos = new UserPhotosService({
@@ -105,13 +105,16 @@ export function startPage(g) {
       userPhotos: photos.allowed,
       commentary: commentary.state,
       buttonMap: settings.buttonMap,
+      inVisit: inVisit(),
     });
   const levels = new LevelService({ page: dom, toast, scheduler, onSwitched: renderHud, log });
   const minimap = new MinimapService(dom, toast, store, log);
   const commentary = new CommentaryClient({ bus, navigator, modes, toast, isHidden, onChange: renderHud });
   const ambient = new AmbientReporter({ bus, navigator, settings, isHidden });
   const visit = new VisitService({ bus, navigator, panoramas, input, toast, store, isHidden, routes, log });
+  const inVisit = () => visit.inThisTab && isStreetView();
   modes.onChange(renderHud);
+  bus.on(Msg.TOAST, (m) => toast.show(m.message, config.TOAST_SHORT));
 
   /** What each press action and each mode command does. */
   const commands = {
@@ -126,6 +129,8 @@ export function startPage(g) {
     [ModeCommand.ARTICLE_PREV]: () => commentary.next(-1),
     [ModeCommand.FULLSCREEN]: () => bus.post(Msg.TOGGLE_FULLSCREEN),
     [ModeCommand.OVERLAY]: () => overlay.toggle(),
+    [ModeCommand.SCREENSHOT]: () => bus.post(Msg.SCREENSHOT),
+    [ModeCommand.BOOKMARK]: () => bus.post(Msg.BOOKMARK),
     [ModeCommand.HISTORY_BACK]: () => navigator.back(),
     [ModeCommand.MINIMAP_TOGGLE]: () => minimap.toggle(),
     [ModeCommand.MINIMAP_ZOOM_IN]: () => minimap.zoom(1),
@@ -144,6 +149,7 @@ export function startPage(g) {
     jump,
     commands,
     mode: () => modes.mode,
+    inVisit,
     now: () => scheduler.now(),
     log,
   });
@@ -160,8 +166,14 @@ export function startPage(g) {
   scheduler.every(config.COMMENTARY_POLL, () => commentary.lookup());
   scheduler.every(config.HUD_RENDER_POLL, renderHud);
   scheduler.every(config.MINIMAP_POLL, () => minimap.restore());
-  scheduler.every(config.MINIMAP_IMAGERY_POLL, () => minimap.showImagery());
+  // Not during a drag: the hover's mousemove reaches the document, where Maps
+  // would take it for the dragging cursor jumping to the minimap and turn the view.
+  scheduler.every(config.MINIMAP_IMAGERY_POLL, () => look.drag || mouseHeld || minimap.showImagery());
   scheduler.every(config.HUD_PLACE_POLL, () => hud.place());
+
+  let mouseHeld = false;
+  window.addEventListener("mousedown", (e) => e.isTrusted && (mouseHeld = true), { capture: true });
+  window.addEventListener("mouseup", (e) => e.isTrusted && (mouseHeld = false), { capture: true });
 
   // Zooming the minimap with the mouse counts too, so a jump keeps it.
   const onMinimap = (/** @type {Event} */ e) => {

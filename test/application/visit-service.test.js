@@ -142,3 +142,16 @@ test("visit service: a finished visit is ignored", async () => {
   assert.equal(env.panoramas.nearest.calls.length, 0);
   assert.equal(env.bus.of(Msg.VISIT_FINISH).length, 0);
 });
+
+test("inThisTab: only the tab that entered the stop plays it", () => {
+  const entered = setup({ href: PANO });
+  entered.bus.receive(Msg.VISIT, { visit: visit() });
+  assert.equal(entered.svc.inThisTab, true);
+  entered.bus.receive(Msg.VISIT, { visit: visit({ finished: true }) });
+  assert.equal(entered.svc.inThisTab, false);
+  // a visit left unfinished, seen from a Maps tab opened by hand
+  const other = setup({ href: PANO });
+  other.bus.receive(Msg.VISIT, { visit: visit({ state: VisitState.VISITING }) });
+  assert.equal(other.svc.active, true);
+  assert.equal(other.svc.inThisTab, false);
+});

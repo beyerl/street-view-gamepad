@@ -18,9 +18,22 @@ export class InputController {
    *           isHidden: () => boolean, isStreetView: () => boolean,
    *           streetView: import("../ports/index.js").ViewControls, map: import("../ports/index.js").ViewControls,
    *           jump: import("./jump-service.js").JumpService, commands: Record<string, () => void>,
-   *           mode: () => string, now: () => number, log: (level: string, ...a: any[]) => void }} deps
+   *           mode: () => string, inVisit?: () => boolean, now: () => number, log: (level: string, ...a: any[]) => void }} deps
    */
-  constructor({ input, settings, isHidden, isStreetView, streetView, map, jump, commands, mode, now, log }) {
+  constructor({
+    input,
+    settings,
+    isHidden,
+    isStreetView,
+    streetView,
+    map,
+    jump,
+    commands,
+    mode,
+    inVisit = () => false,
+    now,
+    log,
+  }) {
     this.input = input;
     this.settings = settings;
     this.isHidden = isHidden;
@@ -30,6 +43,7 @@ export class InputController {
     this.jump = jump;
     this.commands = commands;
     this.mode = mode;
+    this.inVisit = inVisit;
     this.now = now;
     this.log = log;
     /** @type {Map<string, { action: { down(repeat: boolean): void, up(): void }, nextAt: number }>} */
@@ -76,7 +90,7 @@ export class InputController {
   /** What mode button `index` does in the current mode, as a held action, or
    * null if nothing. Only some commands repeat while held. @param {number} index */
   modeButton(index) {
-    const cmd = modeCommand(this.mode(), index);
+    const cmd = modeCommand(this.mode(), index, this.inVisit());
     const run = cmd && this.commands[cmd];
     if (!run) return null;
     return { down: (/** @type {boolean} */ repeat) => (!repeat || REPEATING.has(cmd)) && run(), up: () => {} };

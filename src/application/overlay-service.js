@@ -2,11 +2,13 @@ import { SessionKey } from "../shared/storage-keys.js";
 
 /** Hides and shows Maps' search bar and title card; remembered for the tab. */
 export class OverlayService {
-  /** @param {import("../ports/index.js").MapsPage} page @param {import("../ports/index.js").KeyValueStore} store @param {(level: string, ...a: any[]) => void} log */
-  constructor(page, store, log) {
+  /** @param {import("../ports/index.js").MapsPage} page @param {import("../ports/index.js").KeyValueStore} store @param {(level: string, ...a: any[]) => void} log
+   * @param {() => boolean} [forced] whether they must stay hidden regardless of the toggle */
+  constructor(page, store, log, forced = () => false) {
     this.page = page;
     this.store = store;
     this.log = log;
+    this.forced = forced;
     this.hidden = store.get(SessionKey.OVERLAY_HIDDEN) === "1";
   }
 
@@ -19,6 +21,6 @@ export class OverlayService {
 
   /** Polled: Maps re-renders these panels (e.g. a new title card after walking). */
   refresh() {
-    if (this.hidden) this.page.setOverlayHidden(true);
+    if (this.hidden || this.forced()) this.page.setOverlayHidden(true);
   }
 }

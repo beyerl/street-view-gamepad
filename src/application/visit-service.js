@@ -46,6 +46,12 @@ export class VisitService {
     return !!this.visit && !this.visit.finished && !this.finishing;
   }
 
+  /** Whether this tab was sent here by the game. A visit is kept until the game
+   * takes it back, so one left unfinished must not change other Maps tabs. */
+  get inThisTab() {
+    return this.active && this.store.get(SessionKey.VISIT_TAB) === this.visit.slot + this.visit.startedAt;
+  }
+
   /** @param {import("../domain/visit.js").Visit | null} visit */
   onVisit(visit) {
     this.visit = visit;
@@ -55,7 +61,10 @@ export class VisitService {
       this.store.set(SessionKey.VISIT_GREETED, visit.slot + visit.startedAt);
       this.toast.show(HELLO, TOAST_LONG);
     }
-    if (visit.state === VisitState.ENTERING) this.enter();
+    if (visit.state === VisitState.ENTERING) {
+      this.store.set(SessionKey.VISIT_TAB, visit.slot + visit.startedAt);
+      this.enter();
+    }
   }
 
   /** Street View at the start of the route, facing its end. */

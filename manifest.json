@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Street View Gamepad",
-  "version": "1.12.3",
+  "version": "1.12.4",
   "description": "Control Google Maps and Street View with a gamepad and hear ambient field recordings from nearby (radio aporee ::: maps) and spoken Wikipedia articles about the place. Plays the Street View stops of the Virtual Visit game.",
-  "permissions": ["storage", "offscreen", "declarativeNetRequest"],
+  "permissions": ["storage", "offscreen", "declarativeNetRequest", "bookmarks", "downloads"],
   "background": {
     "service_worker": "dist/background.js"
   },
@@ -49,6 +49,7 @@
     "default_title": "Street View Gamepad settings"
   },
   "host_permissions": [
+    "<all_urls>",
     "https://aporee.org/*",
     "https://*.wikipedia.org/*",
     "https://commons.wikimedia.org/*",

@@ -7,6 +7,7 @@ export const SessionKey = Object.freeze({
   ROUTE: "svgp-route",
   JUMPED: "svgp-jumped", // set just before a jump reloads the page
   VISIT_GREETED: "svgp-visit-greeted", // the Virtual Visit stop whose hint was shown
+  VISIT_TAB: "svgp-visit-tab", // the Virtual Visit stop this tab was sent to play
   USER_PHOTOS_OFF: "svgp-user-photos-off", // "1": jumps skip user-contributed photos
   MINIMAP_WIDTH: "svgp-minimap-width", // px, set just before a jump reloads the page
   MINIMAP_ZOOM: "svgp-minimap-zoom", // steps zoomed in (+) or out (-), set just before a jump

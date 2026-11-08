@@ -50,6 +50,7 @@ export const LEVEL_RENDER_DELAY = 300; // after switching floors, before the HUD
 export const LOCATIONS_MAX_AGE = 7 * 24 * 3600 * 1000;
 export const WIKI_RADIUS = 500; // around the position to look for an article
 export const WIKI_LIMIT = 10; // articles to consider
+export const ARTICLE_LEAD = 300; // characters at an article's start cleared of names in other scripts
 export const WIKI_DISTANCE_BIAS = 100; // m added to distances when weighing length against distance
 export const COMMONS_MAX_FILES = 20;
 export const ERROR_NOTICE = 6000;

@@ -74,12 +74,12 @@ export class HudView {
     this.el.style.right = this.el.style.bottom = `${HUD_MARGIN}px`;
   }
 
-  /** @param {boolean} show @param {Parameters<typeof hudChips>[0] & { buttonMap: Parameters<typeof hudSummary>[1] }} [state] */
+  /** @param {boolean} show @param {Parameters<typeof hudChips>[0] & { buttonMap: Parameters<typeof hudSummary>[1], inVisit?: boolean }} [state] */
   render(show, state) {
     this.el.hidden = !show;
     if (!show || !state) return;
     ensureAttached(this.document, this.el);
-    this.el.render(hudChips(state), hudSummary(state.mode, state.buttonMap));
+    this.el.render(hudChips(state), hudSummary(state.mode, state.buttonMap, state.inVisit));
   }
 
   place() {

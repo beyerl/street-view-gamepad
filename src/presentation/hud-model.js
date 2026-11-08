@@ -46,11 +46,12 @@ export function hudChips({ mode, floor, userPhotos = true, commentary: c }) {
 
 /** What the mode buttons do in `mode`, each by the name of its button on the pad.
  * @param {string} mode @param {Record<string, import("../domain/actions.js").BindingValue>} buttonMap
+ * @param {boolean} [inVisit] whether a Virtual Visit is being played here
  * @returns {SummaryLine[]} */
-export function hudSummary(mode, buttonMap) {
+export function hudSummary(mode, buttonMap, inVisit = false) {
   const preset = presetOf(buttonMap);
   return MODE_BUTTONS.flatMap((action, i) => {
-    const command = modeCommand(mode, i);
+    const command = modeCommand(mode, i, inVisit);
     const binding = buttonMap[action] ?? null;
     if (!command || binding === null) return [];
     return [{ button: buttonName(binding, preset), label: COMMAND_LABELS[command] }];

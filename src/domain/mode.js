@@ -25,6 +25,8 @@ export const ModeCommand = Object.freeze({
   ARTICLE_PREV: "articlePrev",
   FULLSCREEN: "fullscreen",
   OVERLAY: "overlay",
+  SCREENSHOT: "screenshot",
+  BOOKMARK: "bookmark",
   HISTORY_BACK: "historyBack",
   MINIMAP_TOGGLE: "minimapToggle",
   MINIMAP_ZOOM_IN: "minimapZoomIn",
@@ -67,11 +69,24 @@ export const COMMAND_LABELS = Object.freeze({
   [ModeCommand.ARTICLE_PREV]: "Previous article",
   [ModeCommand.FULLSCREEN]: "Fullscreen",
   [ModeCommand.OVERLAY]: "Hide / show search bar",
+  [ModeCommand.SCREENSHOT]: "Screenshot",
+  [ModeCommand.BOOKMARK]: "Bookmark",
   [ModeCommand.HISTORY_BACK]: "Browser back",
   [ModeCommand.MINIMAP_TOGGLE]: "Enlarge / shrink",
   [ModeCommand.MINIMAP_ZOOM_IN]: "Zoom in",
   [ModeCommand.MINIMAP_ZOOM_OUT]: "Zoom out",
 });
 
-/** The command of mode button `index` (0-2) in `mode`, or null. @param {string} mode @param {number} index */
-export const modeCommand = (mode, index) => MODE_TABLE[mode]?.buttons[index] ?? null;
+/** In a Virtual Visit the search bar stays hidden and the window stays as it
+ * is, so those two buttons do something else. @type {Readonly<Record<string, string>>} */
+const VISIT_COMMANDS = Object.freeze({
+  [ModeCommand.FULLSCREEN]: ModeCommand.BOOKMARK,
+  [ModeCommand.OVERLAY]: ModeCommand.SCREENSHOT,
+});
+
+/** The command of mode button `index` (0-2) in `mode`, or null.
+ * @param {string} mode @param {number} index @param {boolean} [inVisit] whether a Virtual Visit is being played here */
+export function modeCommand(mode, index, inVisit = false) {
+  const command = MODE_TABLE[mode]?.buttons[index] ?? null;
+  return (inVisit && command && VISIT_COMMANDS[command]) || command;
+}

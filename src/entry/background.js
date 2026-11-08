@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, effectiveVolumes, withDefaults } from "../domain/sett
 import { AmbientService } from "../application/ambient-service.js";
 import { CommentaryService } from "../application/commentary-service.js";
 import { FullscreenService } from "../application/fullscreen-service.js";
+import { KeepsakeService } from "../application/keepsake-service.js";
 import { AporeeRecordingRepository, aporeeRule } from "../infrastructure/aporee-recording-repository.js";
 import { ChromeOffscreenAudio } from "../infrastructure/chrome-offscreen-audio.js";
 import { plainLogger } from "../infrastructure/logger.js";
@@ -31,6 +32,13 @@ export function startBackground({ chrome, fetch, console, random = Math.random, 
   });
 
   const fullscreen = new FullscreenService(chrome.windows, chrome.storage.session);
+  const keepsakes = new KeepsakeService({
+    tabs: chrome.tabs,
+    downloads: chrome.downloads,
+    bookmarks: chrome.bookmarks,
+    now: () => Date.now(),
+    warn,
+  });
   const ambient = new AmbientService({
     recordings,
     audio,
@@ -45,6 +53,8 @@ export function startBackground({ chrome, fetch, console, random = Math.random, 
   /** Messages from tabs, by type. @type {Record<string, (tab: chrome.tabs.Tab, msg: any) => unknown>} */
   const fromTab = {
     [Msg.TOGGLE_FULLSCREEN]: (tab) => fullscreen.toggle(tab.windowId),
+    [Msg.SCREENSHOT]: (tab) => keepsakes.screenshot(tab),
+    [Msg.BOOKMARK]: (tab) => keepsakes.bookmark(tab),
     [Msg.AMBIENT]: (tab, msg) => ambient.at(tab.id, new GeoPoint(msg.lat, msg.lng)),
     [Msg.AMBIENT_STOP]: (tab) => ambient.stop(tab.id),
     [Msg.COMMENTARY_AT]: (tab, msg) => commentary.lookup(tab.id, new GeoPoint(msg.lat, msg.lng)),

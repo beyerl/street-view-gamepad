@@ -3,6 +3,7 @@
 // introduction read aloud) in the offscreen document. It is the context of
 // the playback state machine (domain/commentary-state.js).
 
+import { withoutForeignLead } from "../domain/articles.js";
 import { Paused, Playing, PlaybackStatus, Stopped } from "../domain/commentary-state.js";
 import { ERROR_NOTICE } from "../shared/config.js";
 import { Msg, OffscreenMsg } from "../shared/messages.js";
@@ -118,7 +119,7 @@ export class CommentaryService {
     else
       await this.audio.send({
         type: OffscreenMsg.COMMENTARY_SPEAK,
-        text: article.text || article.title,
+        text: withoutForeignLead(article.text) || article.title,
         lang: article.lang,
       });
   }

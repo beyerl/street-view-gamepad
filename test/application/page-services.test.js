@@ -45,6 +45,17 @@ test("overlay: toggles, remembers, and keeps hiding re-rendered panels", () => {
   assert.equal(store.get(SessionKey.OVERLAY_HIDDEN), "");
 });
 
+test("overlay: stays hidden while forced, whatever the toggle says", () => {
+  const page = { setOverlayHidden: spy() };
+  let forced = true;
+  const overlay = new OverlayService(page, new MemoryStore(), noLog, () => forced);
+  overlay.refresh();
+  assert.deepEqual(page.setOverlayHidden.calls, [[true]]);
+  forced = false;
+  overlay.refresh();
+  assert.equal(page.setOverlayHidden.calls.length, 1);
+});
+
 test("ambient: reports the position once per ~10 m and stops once", () => {
   const bus = fakeBus();
   const navigator = fakeNavigator("https://www.google.com/maps/@52.5,13.4,15z");

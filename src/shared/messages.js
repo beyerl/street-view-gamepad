@@ -32,6 +32,8 @@ export const Msg = Object.freeze({
   VISIT: "visit", // { visit } the running Virtual Visit stop, or null
   // page -> background (forwarded by the bridge)
   TOGGLE_FULLSCREEN: "toggleFullscreen",
+  SCREENSHOT: "screenshot",
+  BOOKMARK: "bookmark",
   AMBIENT: "ambient",
   AMBIENT_STOP: "ambientStop",
   COMMENTARY_AT: "commentaryAt",
@@ -43,6 +45,7 @@ export const Msg = Object.freeze({
   // background -> page (relayed by the bridge)
   COMMENTARY: "commentary",
   COMMENTARY_NOTICE: "commentaryNotice",
+  TOAST: "toast", // { message }
   // offscreen -> background
   COMMENTARY_ENDED: "commentaryEnded",
   COMMENTARY_LOADING: "commentaryLoading",
@@ -55,6 +58,8 @@ export const Msg = Object.freeze({
  */
 export const FORWARDED = Object.freeze({
   [Msg.TOGGLE_FULLSCREEN]: [],
+  [Msg.SCREENSHOT]: [],
+  [Msg.BOOKMARK]: [],
   [Msg.AMBIENT]: ["lat", "lng"],
   [Msg.AMBIENT_STOP]: [],
   [Msg.COMMENTARY_AT]: ["lat", "lng"],
@@ -64,7 +69,7 @@ export const FORWARDED = Object.freeze({
 });
 
 /** Background messages the bridge relays to the page. */
-export const RELAYED = Object.freeze([Msg.COMMENTARY, Msg.COMMENTARY_NOTICE]);
+export const RELAYED = Object.freeze([Msg.COMMENTARY, Msg.COMMENTARY_NOTICE, Msg.TOAST]);
 
 /** Messages from the background worker to the offscreen document. */
 export const OffscreenMsg = Object.freeze({

@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withoutForeignLead } from "../../src/domain/articles.js";
 import { COMMAND_LABELS, isMode, Mode, MODE_TABLE, modeCommand, MODES, nextMode } from "../../src/domain/mode.js";
 import { isLevelLabel, levelTarget, LevelStep } from "../../src/domain/levels.js";
 import { ArticlePlaylist, audioFiles, isSpokenCategory, rankPages } from "../../src/domain/articles.js";
@@ -79,4 +80,27 @@ test("nearest recording location", () => {
   assert.equal(loc[0], 1);
   assert.ok(km > 2 && km < 3);
   assert.deepEqual(nearestLocation([], new GeoPoint(0, 0)), { loc: null, km: Infinity });
+});
+
+test("modeCommand: in a Virtual Visit, fullscreen bookmarks and the search bar button takes a screenshot", () => {
+  assert.equal(modeCommand(Mode.BROWSER, 0, true), "bookmark");
+  assert.equal(modeCommand(Mode.BROWSER, 1, true), "screenshot");
+  assert.equal(modeCommand(Mode.BROWSER, 2, true), "historyBack");
+  assert.equal(modeCommand(Mode.BROWSER, 0), "fullscreen");
+  assert.equal(COMMAND_LABELS.screenshot, "Screenshot");
+});
+
+test("withoutForeignLead: takes names in other scripts out of the start only", () => {
+  const f = withoutForeignLead;
+  assert.equal(
+    f("Beijing (Chinese: 北京; pinyin: Běijīng) is the capital."),
+    "Beijing (pinyin: Běijīng) is the capital.",
+  );
+  assert.equal(f("Tokyo (東京) is big."), "Tokyo is big.");
+  assert.equal(f("Moscow (Russian: Москва-река, tr. Moskva) is big."), "Moscow (tr. Moskva) is big.");
+  assert.equal(f("Café Zürich: naïve Ångström."), "Café Zürich: naïve Ångström.");
+  assert.equal(f("Москва — столица России."), "Москва — столица России.");
+  const late = `${"word ".repeat(100)}北京 end`;
+  assert.equal(f(late), late);
+  assert.equal(f(""), "");
 });

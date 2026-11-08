@@ -40,7 +40,9 @@ only.
 | 4 Minimap    | enlarge / shrink  | zoom in (repeats)        | zoom out (repeats) |
 
 Floors wrap around: up from the top floor goes to the bottom one and down from the bottom to the
-top. Next / previous article goes through the (up to ten) articles nearby, wrapping around; a
+top. During a [Virtual Visit](#virtual-visit), the search bar stays hidden and mode 3's first two
+buttons change: button 1 bookmarks the view in the "Virtual Visit" bookmark folder and button 2
+saves a screenshot to Downloads/Virtual Visit. Next / previous article goes through the (up to ten) articles nearby, wrapping around; a
 playing commentary switches to the new article. The minimap is enlarged and shrunk with its own
 button and zoomed with the mouse wheel over it.
 
