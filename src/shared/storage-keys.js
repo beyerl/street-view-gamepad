@@ -19,6 +19,7 @@ export const StorageKey = Object.freeze({
   NOW_PLAYING: "nowPlaying", // session: attribution of the ambient recording, shown in the popup
   APOREE_LOCATIONS: "aporeeLocations", // local: all recording locations, cached for a week
   VISIT: "virtualVisit", // local: the Virtual Visit stop in progress (see domain/visit.js)
+  SETTINGS_UPDATED_AT: "settingsUpdatedAt", // sync: ms of the last change, compared with the game's (see visit-link.js)
   /** session: window state before entering fullscreen */
   prevWindowState: (/** @type {number} */ windowId) => `prevState:${windowId}`,
 });

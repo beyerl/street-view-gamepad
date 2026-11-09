@@ -14,6 +14,7 @@ export const Source = Object.freeze({
 /** Messages between the Virtual Visit game and our content script on its page (see domain/visit.js). */
 export const VisitMsg = Object.freeze({
   HELLO: "vv-hello", // game: is the extension there? answered with STATE
+  SETTINGS: "vv-settings", // both ways: the settings and when they last changed
   START: "vv-start", // game: a visit begins (ticket), answered with STARTED
   CLEAR: "vv-clear", // game: the visit was taken over, forget it
   STATE: "vv-state", // extension: the stored visit (or null) and our version

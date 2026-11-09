@@ -10,6 +10,12 @@ import { AXIS_RELEASE, AXIS_THRESHOLD, HAT_TOLERANCE } from "../shared/config.js
 
 const AXIS_RE = /^a(\d+)(?:([+-])|=(-?\d+(?:\.\d+)?))$/;
 
+/** Whether a value from outside is a binding (or null, unassigned). @param {unknown} value */
+export const isBinding = (value) =>
+  value === null ||
+  (typeof value === "number" && Number.isInteger(value) && value >= 0) ||
+  (typeof value === "string" && AXIS_RE.test(value));
+
 /** @param {import("./actions.js").BindingValue} binding @param {PadState} pad */
 export function isBindingActive(binding, pad) {
   if (typeof binding === "number") return !!pad.buttons[binding]?.pressed;

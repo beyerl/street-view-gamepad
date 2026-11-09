@@ -18,7 +18,7 @@ export function startPopup(g) {
   };
 
   document.addEventListener(SETTING_CHANGE, (/** @type {CustomEvent} */ e) =>
-    chrome.storage.sync.set({ [e.detail.key]: e.detail.value }),
+    chrome.storage.sync.set({ [e.detail.key]: e.detail.value, [StorageKey.SETTINGS_UPDATED_AT]: Date.now() }),
   );
 
   document.getElementById("mapping").addEventListener("click", () => {
@@ -27,7 +27,11 @@ export function startPopup(g) {
   });
 
   document.getElementById("reset").addEventListener("click", async () => {
-    await chrome.storage.sync.set({ ...DEFAULT_SETTINGS, buttonMap: { ...DEFAULT_SETTINGS.buttonMap } });
+    await chrome.storage.sync.set({
+      ...DEFAULT_SETTINGS,
+      buttonMap: { ...DEFAULT_SETTINGS.buttonMap },
+      [StorageKey.SETTINGS_UPDATED_AT]: Date.now(),
+    });
     show(DEFAULT_SETTINGS);
   });
 
