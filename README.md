@@ -107,6 +107,12 @@ extension:
   game, which plays the next train ride. Coming back with the browser's Back button instead
   keeps the stop open.
 
+**Settings** are shared with the game: its settings screen shows the same ones as the popup and
+the key mapping window. The game keeps them in its localStorage, which is the single source of
+truth once the game has them. The extension's other pages can't read another site's storage, so
+`chrome.storage.sync` mirrors it for them. Each side stamps its changes and the newer one wins, so a
+change in the popup while the game is closed reaches the game the next time it opens.
+
 The content script runs on `https://beyerl.github.io/virtual-visit/` and on `localhost` /
 `127.0.0.1` (for running the game locally). It only talks to the page it runs on, and only accepts
 stops whose return address is that page. The protocol is described in `src/domain/visit.js`.

@@ -3,6 +3,7 @@
 import { KeyMappingSession } from "../application/key-mapping.js";
 import { PRESETS } from "../domain/actions.js";
 import { GamepadInput } from "../infrastructure/browser.js";
+import { StorageKey } from "../shared/storage-keys.js";
 import { defineSettingsComponents, ROW_SELECT } from "../presentation/settings-components.js";
 
 const POLL = 30;
@@ -44,7 +45,7 @@ export function startMapping(g) {
     }
   };
   const session = new KeyMappingSession({
-    save: (map) => chrome.storage.sync.set({ buttonMap: map }),
+    save: (map) => chrome.storage.sync.set({ buttonMap: map, [StorageKey.SETTINGS_UPDATED_AT]: Date.now() }),
     onChange: render,
   });
 

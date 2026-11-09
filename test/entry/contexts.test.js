@@ -280,7 +280,8 @@ test("popup: shows the stored settings and saves changes; mapping and reset butt
   const volume = document.getElementById("volume");
   volume.value = "70";
   volume.dispatchEvent(new window.Event("input", { bubbles: true }));
-  assert.deepEqual(chrome.storage.sync.set.calls.at(-1), [{ volume: 70 }]);
+  assert.equal(chrome.storage.sync.set.calls.at(-1)[0].volume, 70);
+  assert.equal(typeof chrome.storage.sync.data.settingsUpdatedAt, "number");
   document.getElementById("reset").click();
   await flush();
   assert.equal(chrome.storage.sync.data.lookSpeedX, DEFAULT_SETTINGS.lookSpeedX);
@@ -451,7 +452,7 @@ test("visit link: answers hello with the stored visit, accepts a ticket from its
   assert.equal(chrome.storage.local.data.virtualVisit.slot, "g1");
   assert.equal(window.posted.at(-1).data.ok, false);
   await fromGame({ type: "vv-hello" });
-  assert.equal(window.posted.at(-1).data.ticket.slot, "g1");
+  assert.equal(window.posted.findLast((p) => p.data.type === "vv-state").data.ticket.slot, "g1");
   await fromGame({ type: "vv-clear" });
   assert.equal("virtualVisit" in chrome.storage.local.data, false);
   // Messages from elsewhere are ignored.
@@ -461,4 +462,47 @@ test("visit link: answers hello with the stored visit, accepts a ticket from its
   chrome.storage.onChanged.emit({ virtualVisit: {} }, "local");
   await flush();
   assert.equal(window.posted.at(-1).data.type, "vv-state");
+});
+
+test("visit link: settings go both ways, the newer side wins, and bad values are dropped", async () => {
+  const { startVisitLink } = await import("../../src/entry/visit-link.js");
+  const handlers = {};
+  const window = {
+    location: { origin: "https://beyerl.github.io" },
+    posted: [],
+    addEventListener: (t, f) => (handlers[t] ||= []).push(f),
+    postMessage: (data) => window.posted.push(data),
+  };
+  const fromGame = (data) =>
+    Promise.all(handlers.message.map((f) => f({ source: window, data: { source: "virtual-visit", ...data } })));
+  const chrome = makeChrome({ sync: { lookSpeedX: 1000, settingsUpdatedAt: 50 } });
+  startVisitLink({ window, chrome, now: () => 42 });
+  await flush();
+
+  await fromGame({ type: "vv-hello" });
+  const sent = window.posted.at(-1);
+  assert.equal(sent.type, "vv-settings");
+  assert.equal(sent.settings.lookSpeedX, 1000);
+  assert.equal(sent.updatedAt, 50);
+  assert.equal("settingsUpdatedAt" in sent.settings, false);
+
+  await fromGame({ type: "vv-settings", settings: { lookSpeedX: 300 }, updatedAt: 40 });
+  assert.equal(chrome.storage.sync.data.lookSpeedX, 1000, "older than what the extension has");
+
+  await fromGame({ type: "vv-settings", settings: { lookSpeedX: 300, volume: 900, evil: 1 }, updatedAt: 60 });
+  assert.equal(chrome.storage.sync.data.lookSpeedX, 300);
+  assert.equal(chrome.storage.sync.data.settingsUpdatedAt, 60);
+  assert.equal("volume" in chrome.storage.sync.data, false, "out of range");
+  assert.equal("evil" in chrome.storage.sync.data, false);
+
+  await fromGame({ type: "vv-settings", settings: { volume: 5 }, updatedAt: Number.POSITIVE_INFINITY });
+  assert.equal("volume" in chrome.storage.sync.data, false);
+
+  const before = window.posted.length;
+  chrome.storage.onChanged.emit({ masterVolume: {} }, "sync");
+  await flush();
+  assert.equal(window.posted.at(before).type, "vv-settings");
+  chrome.storage.onChanged.emit({ unrelated: {} }, "sync");
+  await flush();
+  assert.equal(window.posted.length, before + 1);
 });
